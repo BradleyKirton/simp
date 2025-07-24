@@ -1,0 +1,33 @@
+{
+    "listeners": {
+        "*:80": {
+            "pass": "routes"
+        }
+    },
+    "routes": [
+        {
+            "match": {
+                "uri": "/static/*"
+            },
+            "action": {
+                "share": "/app/staticfiles$uri"
+            }
+        },
+        {
+            "action": {
+                "pass": "applications/django"
+            }
+        }
+    ],
+    "applications": {
+        "django": {
+            "type": "python 3.13",
+            "path": "/app/",
+            "home": "/app/.venv/",
+            "module": "config.asgi",
+            "environment": {
+                "DJANGO_SETTINGS_MODULE": "config.settings"
+            }
+        }
+    }
+}
