@@ -22,7 +22,7 @@ class IndexView(View):
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <title>Experiments</title>
-                <link rel="icon" href="{% 'favicon' %}" type="image/x-icon">
+                <link rel="icon" href="{% url 'favicon' %}" type="image/x-icon">
                 <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.6/dist/htmx.min.js"></script>
             </head>
             <body>
@@ -53,7 +53,7 @@ class RandomFactView(View):
         <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
-            <link rel="icon" href="{% 'favicon' %}" type="image/x-icon">
+            <link rel="icon" href="{% url 'favicon' %}" type="image/x-icon">
             <title>Experiments</title>
         </head>
         <body>

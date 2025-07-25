@@ -6,9 +6,11 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "daphne>=4.2.1",
+    "django-restframework>=0.0.1",
     "django-template-partials>=24.4",
     "django>=5.2.4",
     "ipython>=9.4.0",
+    "markitdown[all]>=0.1.2",
     "ollama>=0.5.1",
 ]
 
