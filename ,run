@@ -1,9 +1,18 @@
-#!/usr/bin/env bash
+#!/usr/bin/env -S uv run --script
 
-podman container run \
-	--rm \
-	--name simp \
-	--mount type=bind,src="$(pwd)/docker-entrypoint.d/",dst=/docker-entrypoint.d/ \
-	--mount type=bind,src="$(pwd)/",dst=/app/ \
-	--publish 8000:80 \
-	simp
+import subprocess
+import os
+
+runserver = subprocess.Popen(["python", "manage.py", "runserver"], env=os.environ)
+meiliesearch = subprocess.Popen(["./meilisearch-linux-amd64"], env=os.environ)
+ollamaserve = subprocess.Popen(["ollama", "serve"], env=os.environ)
+
+try:
+    runserver.wait()
+    meiliesearch.wait()
+    ollamaserve.wait()
+except KeyboardInterrupt:
+    runserver.kill()
+    meiliesearch.kill()
+    ollamaserve.kill()
+    print("Bye.")

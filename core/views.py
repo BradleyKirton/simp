@@ -115,7 +115,7 @@ def get_sleep_time() -> float:
 
 async def stream_view(request: HttpRequest) -> StreamingHttpResponse:
     async def llm_event_stream() -> t.AsyncIterator:
-        client = ollama.AsyncClient(host="http://ollama:11434")
+        client = ollama.AsyncClient(host="http://localhost:11434")
         stream: t.AsyncIterator[ollama.ChatResponse] = await client.chat(
             model="qwen3:0.6b",
             messages=[

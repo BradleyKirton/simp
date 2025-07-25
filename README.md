@@ -23,3 +23,9 @@ curl -X PUT -d '"/var/log/access.log"' \
 ```console
 uv run watchfiles 'podman-compose restart server' .
 ```
+
+## Meilisearch
+
+```
+https://github.com/meilisearch/meilisearch/releases/tag/v1.15.2
+```
