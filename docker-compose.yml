@@ -1,0 +1,18 @@
+version: "3.8"
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Containerfile
+      tags:
+        - simp
+    ports: 8000:80
+    volumes:
+      - ./docker-entrypoint.d:/docker-entrypoint.d/
+      - ./:/app/
+
+  ollama:
+    image: docker.io/ollama/ollama
+    ports: 11434:11434
+    volumes:
+      - ~/.ollama/:/root/.ollama
