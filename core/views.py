@@ -34,6 +34,9 @@ class IndexView(View):
                     <li>UV for package management within containerized builds</li>
                     <li>Multi stage container builds</li>
                     <li>Django template partials and HTMX</li>
+                    <li>
+                        <a href="https://github.com/nearform/temporal_tables/blob/master/versioning_function.sql">Temporal tables</a>
+                    </li>
                 </ul>
                 <a href="{% url 'fact' %}">Fact over sse</a>
             </body>

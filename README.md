@@ -29,3 +29,18 @@ uv run watchfiles 'podman-compose restart server' .
 ```
 https://github.com/meilisearch/meilisearch/releases/tag/v1.15.2
 ```
+
+## DB Setup
+
+```console
+initdb -D .db
+PGPORT=1000 postgres -D .db
+psql -U postgres
+```
+
+```sql
+CREATE DATABASE simp;
+CREATE USER simp;
+GRANT USAGE ON SCHEMA public TO simp;
+GRANT ALL PRIVILEGES ON simp TO simp;
+```

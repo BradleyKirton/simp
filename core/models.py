@@ -1,3 +1,35 @@
 from django.db import models
+from django.contrib.postgres import fields as pgfields
+from django.db.models import expressions as db_expressions
 
-# Create your models here.
+
+class Customer(models.Model):
+    name = models.CharField(blank=True, max_length=255)
+    address = models.TextField(blank=True)
+    version = models.IntegerField(db_default="1", default=1)
+    sys_period = pgfields.DateTimeRangeField(
+        db_default=db_expressions.RawSQL("tstzrange(current_timestamp, null)", [])
+    )
+
+    class Meta:
+        verbose_name = "Customer"
+        verbose_name_plural = "Customers"
+        constraints = [
+            models.CheckConstraint(
+                name="cst_version_gt_0", condition=models.Q(version__gt=0)
+            )
+        ]
+
+
+class CustomerHistory(models.Model):
+    hid = models.BigAutoField(primary_key=True)
+    id = models.BigIntegerField()
+    name = models.CharField(null=True)
+    address = models.TextField(null=True)
+    version = models.IntegerField(null=True)
+    sys_period = pgfields.DateTimeRangeField()
+
+    class Meta:
+        verbose_name = "Customer (History)"
+        verbose_name_plural = "Customers (History)"
+        indexes = [models.Index(fields=["sys_period"], name="csth_sys_period_idx")]

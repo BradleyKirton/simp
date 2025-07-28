@@ -1,0 +1,196 @@
+#!/usr/bin/env -S uv run --script
+
+import shlex
+import typing as t
+import builtins
+import sys
+import collections
+import enum
+import argparse
+import subprocess
+import os
+import signal
+import pathlib
+
+PROJECT_PATH = pathlib.Path(__file__).parent
+LOCK_FILE_PATH = PROJECT_PATH / "uv.lock"
+VENV_PATH = PROJECT_PATH / ".venv"
+PYTHON_PATH = VENV_PATH / "bin/python"
+PGPORT = 5433
+
+environ = os.environ | {"VIRTUAL_ENV": f"{VENV_PATH}"}
+
+try:
+    from rich import print  # type: ignore
+except ModuleNotFoundError:
+    print = builtins.print
+
+
+class Action(enum.StrEnum):
+    """Available actions."""
+
+    CREATE_VENV = enum.auto()
+    RUN = enum.auto()
+    INSTALL = enum.auto()
+    UPGRADE = enum.auto()
+    LOCK = enum.auto()
+    DJANGO = enum.auto()
+
+
+def run() -> None:
+    def shutdown(*args: object, **kwargs: object) -> None:
+        runserver.terminate()
+        subprocess.run(
+            ["podman-compose", "-f", "compose-local.yml", "down"],
+            env=environ,
+        )
+        print("Killing services.")
+
+        runserver.wait()
+        print("Will shutdown shortly.")
+
+    signal.signal(signal.SIGINT, shutdown)
+
+    subprocess.run(
+        ["podman-compose", "-f", "compose-local.yml", "up", "-d"],
+        env=environ,
+    )
+    runserver = subprocess.Popen([f"{PYTHON_PATH}", "manage.py", "runserver"], env=environ)
+
+    signal.pause()
+
+    print("Bye.")
+
+
+def create_venv(work_queue: collections.deque) -> None:
+    """Create the virtual environment."""
+
+    subprocess.run(shlex.split(f"uv venv {VENV_PATH}"), check=True, cwd=PROJECT_PATH)
+    maybe_append_to_queue(work_queue=work_queue, action=Action.INSTALL, side="left")
+
+
+def install() -> None:
+    """Install the dependencies."""
+    subprocess.run(shlex.split("uv sync"), cwd=PROJECT_PATH, check=True, env=environ)
+
+
+def sync_lock_file(upgrade: bool, work_queue: collections.deque) -> None:
+    """Create lock file."""
+
+    if upgrade:
+        subprocess.run(
+            shlex.split("uv lock -U"), cwd=PROJECT_PATH, check=True, env=environ
+        )
+    else:
+        subprocess.run(
+            shlex.split("uv lock"), cwd=PROJECT_PATH, check=True, env=environ
+        )
+
+    maybe_append_to_queue(work_queue, Action.INSTALL, side="left")
+
+
+def manage_django(extra_args: list[str]) -> None:
+    script_path = pathlib.Path(__file__)
+    manage_path = script_path.parent / "manage.py"
+    manage_command = shlex.split(f"{PYTHON_PATH} {manage_path}") + extra_args
+    returncode = 2
+
+    try:
+        subprocess.run(
+            manage_command,
+            cwd=PROJECT_PATH,
+            check=True,
+            env=environ,
+        )
+    except KeyboardInterrupt:
+        pass
+    except subprocess.CalledProcessError as ex:
+        if ex.returncode != returncode:
+            raise ex
+
+
+def create_initial_plan() -> collections.deque:
+    """Create the initial plan based on what work is outstanding."""
+
+    work_queue = collections.deque()
+
+    if not VENV_PATH.exists():
+        work_queue.appendleft(Action.CREATE_VENV)
+
+    if not LOCK_FILE_PATH.exists():
+        work_queue.append(Action.LOCK)
+
+    return work_queue
+
+
+def maybe_append_to_queue(
+    work_queue: collections.deque, action: Action, side: t.Literal["left", "right"]
+) -> None:
+    """Append the provided action to the queue if it is not already there."""
+    if action in work_queue:
+        return None
+
+    if side == "left":
+        work_queue.appendleft(action)
+    else:
+        work_queue.append(action)
+
+
+def dispatch_action(action: Action, extra_args: list[str]) -> None:
+    """Dispatches an action."""
+    if action is Action.CREATE_VENV:
+        create_venv(work_queue=work_queue)
+    elif action is Action.RUN:
+        run()
+    elif action is Action.LOCK:
+        sync_lock_file(upgrade=False, work_queue=work_queue)
+    elif action is Action.UPGRADE:
+        sync_lock_file(upgrade=True, work_queue=work_queue)
+    elif action is Action.INSTALL:
+        install()
+    elif action is Action.DJANGO:
+        manage_django(extra_args=extra_args)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser("CLI for project management.")
+    parser.add_argument(
+        "action",
+        choices=(
+            Action.RUN,
+            Action.INSTALL,
+            Action.LOCK,
+            Action.UPGRADE,
+            Action.DJANGO,
+        ),
+    )
+
+    work_queue = create_initial_plan()
+
+    if (
+        len(sys.argv) > 1
+        and sys.argv[1] == Action.DJANGO
+        and sys.argv[-1] in ("-h", "--help")
+    ):
+        sys.argv.pop(-1)
+
+        args, extra_args = parser.parse_known_args()
+        extra_args.append("-h")
+    else:
+        args, extra_args = parser.parse_known_args()
+
+    match args:
+        case argparse.Namespace(action=Action.INSTALL):
+            maybe_append_to_queue(work_queue, Action.INSTALL, side="right")
+        case argparse.Namespace(action=Action.UPGRADE):
+            maybe_append_to_queue(work_queue, Action.UPGRADE, side="right")
+        case argparse.Namespace(action=Action.LOCK):
+            maybe_append_to_queue(work_queue, Action.LOCK, side="right")
+        case argparse.Namespace(action=Action.DJANGO):
+            maybe_append_to_queue(work_queue, Action.DJANGO, side="right")
+        case argparse.Namespace(action=Action.RUN):
+            maybe_append_to_queue(work_queue, Action.RUN, side="right")
+
+    while work_queue:
+        action = work_queue.popleft()
+        dispatch_action(action=action, extra_args=extra_args)
