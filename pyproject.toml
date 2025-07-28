@@ -5,11 +5,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "daphne>=4.2.1",
-    "django-restframework>=0.0.1",
     "django-template-partials>=24.4",
     "django>=5.2.4",
-    "ipython>=9.4.0",
     "markitdown[all]>=0.1.2",
     "meilisearch>=0.36.0",
     "ollama>=0.5.1",
@@ -18,8 +15,10 @@ dependencies = [
 
 [tool.uv]
 dev-dependencies = [
+    "daphne>=4.2.1",
     "ipython>=9.4.0",
     "jupyterlab>=4.4.5",
+    "rich>=14.1.0",
     "ruff>=0.12.5",
     "urllib3>=2.5.0",
     "watchfiles>=1.1.0",
