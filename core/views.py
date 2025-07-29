@@ -1,16 +1,22 @@
-import typing as t
-import random
-import ollama
 import asyncio
+import random
+import typing as t
 
+import ollama
+from django import forms
+from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
+from django.shortcuts import get_object_or_404, render
+from django.template import Context, Template
 from django.utils import lorem_ipsum
 from django.views import View
-from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
-from django.template import Template, Context
+from core import models as core_models
 
 
 def favicon_view(request: HttpRequest) -> HttpResponse:
-    return HttpResponse(b'<svg height="16" width="16" xmlns="http://www.w3.org/2000/svg"><text>E</text></svg>', content_type="image/svg+xml")
+    return HttpResponse(
+        b'<svg height="16" width="16" xmlns="http://www.w3.org/2000/svg"><text>E</text></svg>',
+        content_type="image/svg+xml",
+    )
 
 
 class IndexView(View):
@@ -166,3 +172,106 @@ async def stream_view(request: HttpRequest) -> StreamingHttpResponse:
             "Cache-Control": "no-cache",
         },
     )
+
+
+class CustomerAddForm(forms.Form):
+    name = forms.CharField()
+    address = forms.CharField(widget=forms.Textarea())
+
+
+class CustomerEditForm(forms.Form):
+    id = forms.IntegerField(widget=forms.HiddenInput())
+    name = forms.CharField()
+    address = forms.CharField(widget=forms.Textarea())
+
+
+
+class CustomerDeleteForm(forms.Form):
+    id = forms.IntegerField()
+
+
+class SPVIew(View):
+    def post(self, request: HttpRequest) -> HttpResponse:
+        action = request.POST.get("a", "")
+        event_name = ""
+        print(action)
+        if action == "create":
+            customer_form = CustomerAddForm(request.POST)
+            template_name = "core/index.html#create_customer"
+        elif action == "edit":
+            customer_form = CustomerEditForm(request.POST)
+            template_name = "core/index.html#edit_customer"
+        elif action == "delete":
+            customer_form = CustomerDeleteForm(request.POST)
+            template_name = "core/index.html#delete_customer"
+        else:
+            raise Exception(":(")
+
+        if not customer_form.is_valid():
+            context = {"customer_form": customer_form}
+            return render(request, template_name, context)
+
+        if action == "create":
+            name = customer_form.cleaned_data["name"]
+            address = customer_form.cleaned_data["address"]
+            core_models.Customer.new(name=name, address=address)
+            event_name = "CustomerCreated"
+        elif action == "edit":
+            pk = customer_form.cleaned_data["id"]
+            name = customer_form.cleaned_data["name"]
+            address = customer_form.cleaned_data["address"]
+            customer = get_object_or_404(core_models.Customer, pk=pk)
+            customer.update(name=name, address=address)
+            event_name = "CustomerUpdated"
+        elif action == "delete":
+            pk = customer_form.cleaned_data["id"]
+            customer = get_object_or_404(core_models.Customer, pk=pk)
+            customer.delete()
+            event_name = "CustomerDeleted"
+
+        context = {"customer_form": None}
+        response = render(request, template_name, context)
+        response["HX-Trigger-After-Swap"] = event_name
+        return response
+
+    def get(self, request: HttpRequest) -> HttpResponse:
+        action = request.GET.get("a", "")
+
+        if action == "create":
+            customer_form = CustomerAddForm()
+            template_name = "core/index.html#create_customer"
+        elif action == "edit":
+            customer = get_object_or_404(
+                core_models.Customer, pk=request.GET.get("customer_id", 0)
+            )
+            initial = {
+                "id": customer.pk,
+                "name": customer.name,
+                "address": customer.address,
+            }
+            customer_form = CustomerEditForm(initial=initial)
+            template_name = "core/index.html#edit_customer"
+        elif action == "delete":
+            customer = get_object_or_404(
+                core_models.Customer, pk=request.GET.get("customer_id", 0)
+            )
+            initial = {
+                "id": customer.pk,
+                "name": customer.name,
+                "address": customer.address,
+            }
+            customer_form = CustomerEditForm(initial=initial)
+            template_name = "core/index.html#delete_customer"
+        elif action == "list":
+            template_name = "core/index.html#customers"
+            customer_form = None
+        else:
+            template_name = "core/index.html"
+            customer_form = None
+
+        customers = core_models.Customer.objects.all().order_by("name")
+        context = {
+            "customer_form": customer_form,
+            "customers": customers,
+        }
+        return render(request, template_name, context)

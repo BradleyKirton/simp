@@ -20,6 +20,20 @@ class Customer(models.Model):
             )
         ]
 
+    @classmethod
+    def new(cls, name: str, address: str) -> "Customer":
+        return Customer.objects.create(name=name, address=address)
+
+    def update(self, name: str, address: str) -> None:
+        update_count = Customer.objects.filter(id=self.pk).update(
+            name=name, address=address
+        )
+
+        if update_count != 1:
+            raise Exception(":(")
+
+        self.refresh_from_db()
+
 
 class CustomerHistory(models.Model):
     hid = models.BigAutoField(primary_key=True)

@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "django-template-partials>=24.4",
+    "django-widget-tweaks>=1.5.0",
     "django>=5.2.4",
     "markitdown[all]>=0.1.2",
     "meilisearch>=0.36.0",
@@ -23,3 +24,38 @@ dev-dependencies = [
     "urllib3>=2.5.0",
     "watchfiles>=1.1.0",
 ]
+
+[tool.ruff]
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+]
+line-length = 88
+indent-width = 4
+target-version = "py39" # Or your project's Python version
+
+[tool.ruff.lint]
+select = ["E", "F"] # Pyflakes (F) and a subset of pycodestyle (E)
