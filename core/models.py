@@ -47,3 +47,17 @@ class CustomerHistory(models.Model):
         verbose_name = "Customer (History)"
         verbose_name_plural = "Customers (History)"
         indexes = [models.Index(fields=["sys_period"], name="csth_sys_period_idx")]
+
+
+class Message(models.Model):
+    name = models.CharField()
+    content = models.TextField()
+    sent_after = models.DateTimeField(null=True)
+    sent_at = models.DateTimeField(null=True)
+    created_at = models.DateTimeField(
+        db_default=db_expressions.RawSQL("CURRENT_TIMESTAMP", [])
+    )
+
+    class Meta:
+        verbose_name = "Message"
+        verbose_name_plural = "Messages"

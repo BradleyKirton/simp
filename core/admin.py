@@ -28,3 +28,11 @@ class CustomerHistoryAdmin(admin.ModelAdmin):
         "version",
         "sys_period",
     )
+
+
+@admin.register(core_models.Message)
+class MessageAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "content",
+    )

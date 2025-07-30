@@ -1,8 +1,11 @@
+import uuid
 import asyncio
 import random
 import typing as t
-
+import psycopg
 import ollama
+from django.conf import settings
+from django.db import connection
 from django import forms
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, render
@@ -185,7 +188,6 @@ class CustomerEditForm(forms.Form):
     address = forms.CharField(widget=forms.Textarea())
 
 
-
 class CustomerDeleteForm(forms.Form):
     id = forms.IntegerField()
 
@@ -275,3 +277,71 @@ class SPVIew(View):
             "customers": customers,
         }
         return render(request, template_name, context)
+
+
+class ChatEventView(View):
+    async def stream_events(self) -> t.AsyncGenerator:
+        DB = settings.DATABASES["default"]
+        dbname = DB["NAME"]
+        user = DB["USER"]
+        passwd = DB["PASSWORD"]
+        host = DB["HOST"]
+        port = DB["PORT"]
+
+        connection_str = (
+            f"dbname={dbname} user={user} password={passwd} host={host} port={port}"
+        )
+        conn = await psycopg.AsyncConnection.connect(connection_str, autocommit=True)
+        await conn.execute("LISTEN messages;")
+
+        async for notify in conn.notifies():
+            if notify.payload == "stop":
+                break
+
+            yield "event: message\n"
+            yield "data:created\n\n"
+
+        yield "event: close\n"
+        yield "data:\n\n"
+
+    async def get(self, request: HttpRequest) -> StreamingHttpResponse:
+        return StreamingHttpResponse(
+            self.stream_events(),
+            content_type="text/event-stream",
+            headers={
+                "X-Accel-Buffering": "no",
+                "Cache-Control": "no-cache",
+            },
+        )
+
+
+class ChatForm(forms.Form):
+    name = forms.CharField()
+    content = forms.CharField()
+
+
+class ChatView(View):
+    def get(self, request: HttpRequest) -> HttpResponse:
+        guid = uuid.uuid4()
+        messages = core_models.Message.objects.all()
+        is_htmx_request = request.headers.get("HX-Request", "false") == "true"
+
+        if is_htmx_request:
+            template_name = "core/chat.html#messages"
+        else:
+            template_name = "core/chat.html"
+
+        return render(request, template_name, {"name": guid.hex, "messages": messages})
+
+    def post(self, request: HttpRequest) -> HttpResponse:
+        form = ChatForm(data=request.POST)
+
+        if form.is_valid():
+            name = form.cleaned_data["name"]
+            content = form.cleaned_data["content"]
+            core_models.Message.objects.create(name=name, content=content)
+
+            with connection.cursor() as cursor:
+                cursor.execute("NOTIFY messages, 'test'")
+
+        return HttpResponse(b"")

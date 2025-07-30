@@ -12,13 +12,12 @@ import os
 import signal
 import pathlib
 
-PROJECT_PATH = pathlib.Path(__file__).parent
+PROJECT_PATH = pathlib.Path(__file__).parent.parent
 LOCK_FILE_PATH = PROJECT_PATH / "uv.lock"
 VENV_PATH = PROJECT_PATH / ".venv"
-PYTHON_PATH = VENV_PATH / "bin/python"
-PGPORT = 5433
 
-environ = os.environ | {"VIRTUAL_ENV": f"{VENV_PATH}"}
+environ = {**os.environ}
+
 
 try:
     from rich import print  # type: ignore
@@ -52,10 +51,9 @@ def run() -> None:
     signal.signal(signal.SIGINT, shutdown)
 
     subprocess.run(
-        ["podman-compose", "-f", "compose-local.yml", "up", "-d"],
-        env=environ,
+        ["podman-compose", "-f", "compose-local.yml", "up", "-d"], env=environ
     )
-    runserver = subprocess.Popen([f"{PYTHON_PATH}", "manage.py", "runserver"], env=environ)
+    runserver = subprocess.Popen(["uv", "run", "manage.py", "runserver"], env=environ)
 
     signal.pause()
 
@@ -91,8 +89,8 @@ def sync_lock_file(upgrade: bool, work_queue: collections.deque) -> None:
 
 def manage_django(extra_args: list[str]) -> None:
     script_path = pathlib.Path(__file__)
-    manage_path = script_path.parent / "manage.py"
-    manage_command = shlex.split(f"{PYTHON_PATH} {manage_path}") + extra_args
+    manage_path = script_path.parent.parent / "manage.py"
+    manage_command = shlex.split(f"uv run {manage_path}") + extra_args
     returncode = 2
 
     try:

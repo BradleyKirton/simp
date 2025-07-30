@@ -1,0 +1,46 @@
+{% load partials %}
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Chat</title>
+	<script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.6/dist/htmx.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/htmx-ext-sse@2.2.2"></script>
+	<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+
+<body>
+	<div class="flex flex-row p-1">
+		<div class="flex flex-col basis-1/2">
+			<form
+				class="flex flex-col gap-2 w-full"
+				hx-post="{% url 'chat' %}"
+				hx-swap="none">
+				{% csrf_token %}
+				<div class="w-full">
+					<input class="border-1 w-full" type="text" name="name" value="{{ name }}">
+				</div>
+				<div class="w-full">
+					<textarea class="border-1 w-full" rows="10" name="content"></textarea>
+				</div>
+				<button type="submit" class="rounded-sm bg-blue-500 text-white">Send</button>
+			</form>
+		</div>
+		<div class="flex flex-col basis-1/2">
+			<div hx-ext="sse" sse-connect="{% url 'chatsse' %}" sse-close="close">
+				<div id="messages" class="flex flex-col" hx-get="{% url 'chat' %}?p=messages" hx-trigger="sse:message">
+					{% partialdef messages %}
+					{% for message in messages %}
+						<p>{{ message.name }} {{ message.created_at }}: {{ message.content }}</p>
+					{% endfor message in messages %}
+					{% endpartialdef messages %}
+					{% partial messages %}
+				</div>
+			</div>
+		</div>
+	</div>
+</body>
+
+</html>
