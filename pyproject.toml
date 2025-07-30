@@ -11,7 +11,7 @@ dependencies = [
     "markitdown[all]>=0.1.2",
     "meilisearch>=0.36.0",
     "ollama>=0.5.1",
-    "psycopg[pool]>=3.2.9",
+    "psycopg[binary,pool]>=3.2.9",
 ]
 
 [tool.uv]

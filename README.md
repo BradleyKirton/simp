@@ -44,3 +44,7 @@ CREATE USER simp;
 GRANT USAGE ON SCHEMA public TO simp;
 GRANT ALL PRIVILEGES ON simp TO simp;
 ```
+
+## Issues
+
+[https://github.com/nginx/unit/issues/1561](https://github.com/nginx/unit/issues/1561)

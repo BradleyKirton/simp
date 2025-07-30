@@ -4,17 +4,18 @@ import typing as t
 import uuid
 
 import ollama
+import psycopg
+import psycopg_pool
 from django import forms
+from django.conf import settings
 from django.db import connection
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import lorem_ipsum
 from django.views import View
-import psycopg
-import psycopg_pool
 
-from db import models as db_models
 from db import aconn
+from db import models as db_models
 
 
 def favicon_view(request: HttpRequest) -> HttpResponse:
@@ -40,7 +41,9 @@ def get_sleep_time() -> float:
 
 async def stream_view(request: HttpRequest) -> StreamingHttpResponse:
     async def llm_event_stream() -> t.AsyncIterator:
-        client = ollama.AsyncClient(host="http://localhost:11434")
+        client = ollama.AsyncClient(
+            host=f"http://{settings.OLLAMA_HOST}:{settings.OLLAMA_PORT}"
+        )
         stream: t.AsyncIterator[ollama.ChatResponse] = await client.chat(
             model="qwen3:0.6b",
             messages=[
@@ -196,6 +199,9 @@ class ChatEventView(View):
     async def stream_events(
         self, pool: psycopg_pool.AsyncConnectionPool[psycopg.AsyncConnection]
     ) -> t.AsyncGenerator:
+        yield "event:connected\n"
+        yield "data:\n\n"
+
         async with pool.connection() as conn:
             await conn.execute("LISTEN messages;")
 
@@ -247,6 +253,7 @@ class ChatView(View):
         )
 
     def post(self, request: HttpRequest) -> HttpResponse:
+        print(request.POST)
         form = ChatForm(data=request.POST)
 
         if form.is_valid():

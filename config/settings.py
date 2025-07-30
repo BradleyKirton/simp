@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 
@@ -76,8 +77,8 @@ DATABASES = {
         "NAME": "simp",
         "USER": "simp",
         "PASSWORD": "simp",
-        "HOST": "127.0.0.1",
-        "PORT": "5433",
+        "HOST": os.getenv("DB_HOST"),
+        "PORT": os.getenv("DB_PORT"),
         "OPTIONS": {
             "pool": True,
         },
@@ -126,3 +127,8 @@ STATIC_ROOT = BASE_DIR / "staticfiles/static"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# Ollama
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "localhost")
+OLLAMA_PORT = os.getenv("OLLAMA_PORT", "11434")
