@@ -1,18 +1,20 @@
-import uuid
 import asyncio
 import random
 import typing as t
-import psycopg
+import uuid
+
 import ollama
-from django.conf import settings
-from django.db import connection
 from django import forms
+from django.db import connection
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, render
-from django.template import Context, Template
 from django.utils import lorem_ipsum
 from django.views import View
+import psycopg
+import psycopg_pool
+
 from db import models as db_models
+from db import aconn
 
 
 def favicon_view(request: HttpRequest) -> HttpResponse:
@@ -190,35 +192,27 @@ class SPVIew(View):
         return render(request, template_name, context)
 
 
-def get_psycopg_connection_str() -> str:
-    DEFAULT_DB = settings.DATABASES["default"]
-    dbname = DEFAULT_DB["NAME"]
-    user = DEFAULT_DB["USER"]
-    passwd = DEFAULT_DB["PASSWORD"]
-    host = DEFAULT_DB["HOST"]
-    port = DEFAULT_DB["PORT"]
-    return f"dbname={dbname} user={user} password={passwd} host={host} port={port}"
-
-
 class ChatEventView(View):
-    async def stream_events(self) -> t.AsyncGenerator:
-        connection_str = get_psycopg_connection_str()
-        conn = await psycopg.AsyncConnection.connect(connection_str, autocommit=True)
-        await conn.execute("LISTEN messages;")
+    async def stream_events(
+        self, pool: psycopg_pool.AsyncConnectionPool[psycopg.AsyncConnection]
+    ) -> t.AsyncGenerator:
+        async with pool.connection() as conn:
+            await conn.execute("LISTEN messages;")
 
-        async for notify in conn.notifies():
-            if notify.payload == "stop":
-                break
+            async for notify in conn.notifies():
+                if notify.payload == "stop":
+                    break
 
-            yield "event:message\n"
-            yield "data:created\n\n"
+                yield "event:message\n"
+                yield "data:created\n\n"
 
         yield "event: close\n"
         yield "data:\n\n"
 
     async def get(self, request: HttpRequest) -> StreamingHttpResponse:
+        pool = await aconn.get_connection_pool()
         return StreamingHttpResponse(
-            self.stream_events(),
+            self.stream_events(pool=pool),
             content_type="text/event-stream",
             headers={
                 "X-Accel-Buffering": "no",
