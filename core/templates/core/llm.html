@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="{% url 'favicon' %}" type="image/x-icon">
+    <title>Experiments</title>
+</head>
+
+<body>
+    <h1>Random Fact Generator</h1>
+    <div id="stream"></div>
+    <script>
+        const evtSource = new EventSource("{% url 'sse' %}", { withCredentials: true });
+        const streamElement = document.getElementById("stream");
+
+        var thinking = false;
+        var containerElement = streamElement;
+        evtSource.addEventListener("llm", (e) => {
+            let span = document.createElement("span");
+
+            if (e.data == "<think>") {
+                thinking = true;
+                containerElement = document.createElement("div");
+                containerElement.style = 'border: 1px solid black; padding: 1px;';
+                streamElement.appendChild(containerElement);
+                span.innerText = "🤔";
+                containerElement.appendChild(span);
+            } else if (e.data == "</think>") {
+                thinking = false;
+                span.innerText = "🤔";
+                containerElement.appendChild(span);
+                containerElement = streamElement;
+            } else {
+                span.innerText = e.data;
+                containerElement.appendChild(span);
+            }
+        })
+        evtSource.addEventListener("lorem", (e) => {
+            let span = document.createElement("span");
+            let space = document.createElement("span");
+            space.innerText = " ";
+            span.innerText = e.data;
+            containerElement.appendChild(span);
+            containerElement.appendChild(space);
+        })
+        evtSource.addEventListener("end", (e) => {
+            evtSource.close();
+        })
+        evtSource.addEventListener("error", (e) => {
+            console.error(e);
+        });
+    </script>
+</body>
+
+</html>

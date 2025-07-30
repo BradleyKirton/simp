@@ -1,8 +1,8 @@
 from django.contrib import admin
-from core import models as core_models
+from db import models as db_models
 
 
-@admin.register(core_models.Customer)
+@admin.register(db_models.Customer)
 class CustomerAdmin(admin.ModelAdmin):
     list_display = (
         "name",
@@ -16,7 +16,7 @@ class CustomerAdmin(admin.ModelAdmin):
     )
 
 
-@admin.register(core_models.CustomerHistory)
+@admin.register(db_models.CustomerHistory)
 class CustomerHistoryAdmin(admin.ModelAdmin):
     list_display = (
         "name",
@@ -30,9 +30,9 @@ class CustomerHistoryAdmin(admin.ModelAdmin):
     )
 
 
-@admin.register(core_models.Message)
+@admin.register(db_models.Message)
 class MessageAdmin(admin.ModelAdmin):
     list_display = (
-        "name",
+        "user",
         "content",
     )

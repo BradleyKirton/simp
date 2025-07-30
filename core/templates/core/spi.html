@@ -1,0 +1,208 @@
+{% load widget_tweaks %}
+{% load partials %}
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>SPV</title>
+	<script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.6/dist/htmx.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+
+<body>
+	<div id="rightPane" class="
+			fixed
+			right-0
+			bg-white
+			shadow-md
+			z-10
+			border-1
+			w-0
+			h-full
+			transition-width
+			duration-300
+			ease-in-out" data-state="closed" data-width="40vw">
+		<div>
+			<div
+				id="rightPaneContent"
+				class="fade p-10 transition-opacity opacity-0 delay-150 ease-in duration-200"
+				hx-on:htmx:after-swap="rPane.toggle()">
+				{% partialdef create_customer %}
+				<form id="customerForm" hx-post="{% url 'spv' %}" hx-swap="innerHTML">
+					{% csrf_token %}
+					<input type="hidden" name="a" value="create">
+					<div class="flex flex-col gap-2">
+						<div class="flex flex-row">
+							<div class="grow">
+								{{ customer_form.name.label_tag }}
+								{{ customer_form.errors }}
+							</div>
+							<div>
+								{{ customer_form.name|add_class:"border-1" }}
+							</div>
+						</div>
+						<div class="flex flex-row">
+							<div class="grow">
+								{{ customer_form.address.label_tag }}
+								{{ customer_form.errors }}
+							</div>
+							<div>
+								{{ customer_form.address|add_class:"border-1" }}
+							</div>
+						</div>
+					</div>
+				</form>
+				{% endpartialdef create_customer %}
+
+				{% partialdef edit_customer %}
+				<form id="customerForm" hx-post="{% url 'spv' %}" hx-swap="innerHTML">
+					{% csrf_token %}
+					{{ customer_form.id }}
+					<input type="hidden" name="a" value="edit">
+					<div class="flex flex-col gap-2">
+						<div class="flex flex-row">
+							<div class="grow">
+								{{ customer_form.name.label_tag }}
+								{{ customer_form.errors }}
+							</div>
+							<div>
+								{{ customer_form.name|add_class:"border-1" }}
+							</div>
+						</div>
+						<div class="flex flex-row">
+							<div class="grow">
+								{{ customer_form.address.label_tag }}
+								{{ customer_form.errors }}
+							</div>
+							<div>
+								{{ customer_form.address|add_class:"border-1" }}
+							</div>
+						</div>
+					</div>
+				</form>
+				{% endpartialdef edit_customer %}
+
+				{% partialdef delete_customer %}
+				<form id="customerForm" hx-post="{% url 'spv' %}" hx-swap="innerHTML">
+					{% csrf_token %}
+					{{ customer_form.id }}
+					<input type="hidden" name="a" value="delete">
+					<p>Are you sure you want to delete {{ customer_form.name.value }}</p>
+				</form>
+				{% endpartialdef delete_customer %}
+			</div>
+
+			<div class="flex flex-row gap-2">
+				<button form="customerForm" type="submit"
+					class="justify-end bg-blue-500 text-white p-1 rounded-sm">Submit</button>
+				<button id="rightPaneClose" type="button"
+					class="justify-end bg-blue-500 text-white p-1 rounded-sm">Close</button>
+			</div>
+		</div>
+	</div>
+	<button
+		id="openRightPane"
+		hx-get="{% url 'spv' %}?a=create"
+		hx-target="#rightPaneContent"
+		hx-swap="innerHTML"
+		class="rounded-sm bg-blue-500 p-1 text-white">Add</button>
+	<script>
+		const Pane = (options) => {
+			var noop = () => {};
+			var OPEN = "open";
+			var CLOSED = "closed";
+			var selector = options.selector;
+			var element = document.querySelector(selector);
+			var fadeElement = element.querySelector(`.fade`);
+			var initialState = element.dataset.state || CLOSED;
+
+			if (!Array.from([CLOSED, OPEN]).includes(element.dataset.state)) {
+				element.dataset.state = CLOSED;
+			}
+
+			return {
+				el: element,
+				open() {
+					if (fadeElement !== null) {
+						fadeElement.classList.remove("opacity-0");
+						fadeElement.classList.add("opacity-100");
+					}
+					this.el.classList.add("w-[40vw]");
+					this.el.classList.remove("w-0");
+					this.el.dispatchEvent(new CustomEvent("pane:opened", { el: element }))
+					this.el.dataset.state = OPEN;
+				},
+				close() {
+					if (fadeElement !== null) {
+						fadeElement.classList.add("opacity-0");
+						fadeElement.classList.remove("opacity-100");
+					}
+					this.el.classList.remove("w-[40vw]");
+					this.el.classList.add("w-0");
+					this.el.dispatchEvent(new CustomEvent("pane:closed", { el: element }))
+					this.el.dataset.state = CLOSED;
+				},
+				toggle() {
+					if (this.el.dataset.state === CLOSED) this.open(); else this.close();
+				}
+			}
+		}
+		var rPane = Pane({ selector: "#rightPane" });
+		document.getElementById("rightPaneClose").addEventListener("click", () => rPane.close());
+		document.body.addEventListener("CustomerCreated", () => rPane.close());
+		document.body.addEventListener("CustomerUpdated", () => rPane.close());
+	</script>
+	<div class="container mx-auto">
+		<h1 class="text-4xl">Single Pane View</h1>
+		<br>
+		{% partialdef customers %}
+		<table
+			hx-trigger="CustomerCreated from:body,CustomerUpdated from:body,CustomerDeleted from:body"
+			hx-get="{% url 'spv' %}?a=list" class="table-fixed w-full">
+			<thead>
+				<th class="text-left">ID</th>
+				<th class="text-left">Name</th>
+				<th class="text-left">Address</th>
+				<th class="text-left">Version</th>
+				<th class="text-left">Actions</th>
+			</thead>
+			<tbody>
+				{% for customer in customers %}
+				<tr>
+					<td class="text-left">{{ customer.pk }}</td>
+					<td class="text-left">{{ customer.name }}</td>
+					<td class="text-left">{{ customer.address }}</td>
+					<td class="text-left">{{ customer.version }}</td>
+					<td class="text-left">
+						<div class="flex flex-row gap-1">
+							<form
+								hx-get="{% url 'spv' %}?a=edit"
+								hx-target="#rightPaneContent"
+								hx-swap="innerHTML">
+								<input type="hidden" name="customer_id" value="{{ customer.pk }}">
+								<button
+									class="rounded-sm bg-blue-500 text-white p-1">Edit</button>
+							</form>
+							<form
+								hx-get="{% url 'spv' %}?a=delete"
+								hx-target="#rightPaneContent"
+								hx-swap="innerHTML">
+								{% csrf_token %}
+								<input type="hidden" name="customer_id" value="{{ customer.pk }}">
+								<button
+									class="rounded-sm bg-red-500 text-white p-1">Delete</button>
+							</form>
+						</div>
+					</td>
+				</tr>
+				{% endfor customer in customers %}
+			</tbody>
+		</table>
+		{% endpartialdef customers %}
+		{% partial customers %}
+	</div>
+</body>
+
+</html>

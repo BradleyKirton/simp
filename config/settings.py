@@ -25,11 +25,13 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+    "django.contrib.humanize",
     "daphne",
     "widget_tweaks",
     "template_partials",
     "django.contrib.staticfiles",
     "core.apps.CoreConfig",
+    "db.apps.DbConfig",
 ]
 
 MIDDLEWARE = [

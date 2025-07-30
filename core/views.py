@@ -12,7 +12,7 @@ from django.shortcuts import get_object_or_404, render
 from django.template import Context, Template
 from django.utils import lorem_ipsum
 from django.views import View
-from core import models as core_models
+from db import models as db_models
 
 
 def favicon_view(request: HttpRequest) -> HttpResponse:
@@ -24,101 +24,12 @@ def favicon_view(request: HttpRequest) -> HttpResponse:
 
 class IndexView(View):
     def get(self, request: HttpRequest) -> HttpResponse:
-        template_raw = """
-        <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1">
-                <title>Experiments</title>
-                <link rel="icon" href="{% url 'favicon' %}" type="image/x-icon">
-                <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.6/dist/htmx.min.js"></script>
-            </head>
-            <body>
-                <h1>Hello World</h1>
-                <p>This project contains some experiments with:</p>
-                <ul>
-                    <li>Nginx Unit for serving Django ASGI applications</li>
-                    <li>SSE and LLM integration</li>
-                    <li>UV for package management within containerized builds</li>
-                    <li>Multi stage container builds</li>
-                    <li>Django template partials and HTMX</li>
-                    <li>
-                        <a href="https://github.com/nearform/temporal_tables/blob/master/versioning_function.sql">Temporal tables</a>
-                    </li>
-                </ul>
-                <a href="{% url 'fact' %}">Fact over sse</a>
-            </body>
-        </html>
-        """
-        template = Template(template_raw)
-        context = Context({})
-        content = template.render(context=context)
-        return HttpResponse(content.encode())
+        return render(request, "core/index.html", {})
 
 
 class RandomFactView(View):
     def get(self, request: HttpRequest) -> HttpResponse:
-        template_raw = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <link rel="icon" href="{% url 'favicon' %}" type="image/x-icon">
-            <title>Experiments</title>
-        </head>
-        <body>
-            <h1>Random Fact Generator</h1>
-            <div id="stream"></div>
-            <script>
-                const evtSource = new EventSource("{% url 'sse' %}", { withCredentials: true });
-                const streamElement = document.getElementById("stream");
-
-                var thinking = false;
-                var containerElement = streamElement;
-                evtSource.addEventListener("llm", (e) => {
-                    let span = document.createElement("span");
-
-                    if ( e.data == "<think>" ) {
-                        thinking = true;
-                        containerElement = document.createElement("div");
-                        containerElement.style = 'border: 1px solid black; padding: 1px;';
-                        streamElement.appendChild(containerElement);
-                        span.innerText = "🤔";
-                        containerElement.appendChild(span);
-                    } else if ( e.data == "</think>" ) {
-                        thinking = false;
-                        span.innerText = "🤔";
-                        containerElement.appendChild(span);
-                        containerElement = streamElement;
-                    } else {                    
-                        span.innerText = e.data;
-                        containerElement.appendChild(span);
-                    }
-                })
-                evtSource.addEventListener("lorem", (e) => {
-                    let span = document.createElement("span");
-                    let space = document.createElement("span");
-                    space.innerText = " ";
-                    span.innerText = e.data;
-                    containerElement.appendChild(span);
-                    containerElement.appendChild(space);
-                })
-                evtSource.addEventListener("end", (e) => {
-                    evtSource.close();
-                })
-                evtSource.addEventListener("error", (e) => {
-                  console.error(e);
-                });
-            </script>
-        </body>
-        </html>
-        """
-        template = Template(template_raw)
-        context = Context({})
-        content = template.render(context=context)
-        return HttpResponse(content.encode())
+        return render(request, "core/llm.html", {})
 
 
 def get_sleep_time() -> float:
@@ -199,13 +110,13 @@ class SPVIew(View):
         print(action)
         if action == "create":
             customer_form = CustomerAddForm(request.POST)
-            template_name = "core/index.html#create_customer"
+            template_name = "core/spi.html#create_customer"
         elif action == "edit":
             customer_form = CustomerEditForm(request.POST)
-            template_name = "core/index.html#edit_customer"
+            template_name = "core/spi.html#edit_customer"
         elif action == "delete":
             customer_form = CustomerDeleteForm(request.POST)
-            template_name = "core/index.html#delete_customer"
+            template_name = "core/spi.html#delete_customer"
         else:
             raise Exception(":(")
 
@@ -216,18 +127,18 @@ class SPVIew(View):
         if action == "create":
             name = customer_form.cleaned_data["name"]
             address = customer_form.cleaned_data["address"]
-            core_models.Customer.new(name=name, address=address)
+            db_models.Customer.new(name=name, address=address)
             event_name = "CustomerCreated"
         elif action == "edit":
             pk = customer_form.cleaned_data["id"]
             name = customer_form.cleaned_data["name"]
             address = customer_form.cleaned_data["address"]
-            customer = get_object_or_404(core_models.Customer, pk=pk)
+            customer = get_object_or_404(db_models.Customer, pk=pk)
             customer.update(name=name, address=address)
             event_name = "CustomerUpdated"
         elif action == "delete":
             pk = customer_form.cleaned_data["id"]
-            customer = get_object_or_404(core_models.Customer, pk=pk)
+            customer = get_object_or_404(db_models.Customer, pk=pk)
             customer.delete()
             event_name = "CustomerDeleted"
 
@@ -241,10 +152,10 @@ class SPVIew(View):
 
         if action == "create":
             customer_form = CustomerAddForm()
-            template_name = "core/index.html#create_customer"
+            template_name = "core/spi.html#create_customer"
         elif action == "edit":
             customer = get_object_or_404(
-                core_models.Customer, pk=request.GET.get("customer_id", 0)
+                db_models.Customer, pk=request.GET.get("customer_id", 0)
             )
             initial = {
                 "id": customer.pk,
@@ -252,10 +163,10 @@ class SPVIew(View):
                 "address": customer.address,
             }
             customer_form = CustomerEditForm(initial=initial)
-            template_name = "core/index.html#edit_customer"
+            template_name = "core/spi.html#edit_customer"
         elif action == "delete":
             customer = get_object_or_404(
-                core_models.Customer, pk=request.GET.get("customer_id", 0)
+                db_models.Customer, pk=request.GET.get("customer_id", 0)
             )
             initial = {
                 "id": customer.pk,
@@ -263,15 +174,15 @@ class SPVIew(View):
                 "address": customer.address,
             }
             customer_form = CustomerEditForm(initial=initial)
-            template_name = "core/index.html#delete_customer"
+            template_name = "core/spi.html#delete_customer"
         elif action == "list":
-            template_name = "core/index.html#customers"
+            template_name = "core/spi.html#customers"
             customer_form = None
         else:
-            template_name = "core/index.html"
+            template_name = "core/spi.html"
             customer_form = None
 
-        customers = core_models.Customer.objects.all().order_by("name")
+        customers = db_models.Customer.objects.all().order_by("name")
         context = {
             "customer_form": customer_form,
             "customers": customers,
@@ -279,18 +190,19 @@ class SPVIew(View):
         return render(request, template_name, context)
 
 
+def get_psycopg_connection_str() -> str:
+    DEFAULT_DB = settings.DATABASES["default"]
+    dbname = DEFAULT_DB["NAME"]
+    user = DEFAULT_DB["USER"]
+    passwd = DEFAULT_DB["PASSWORD"]
+    host = DEFAULT_DB["HOST"]
+    port = DEFAULT_DB["PORT"]
+    return f"dbname={dbname} user={user} password={passwd} host={host} port={port}"
+
+
 class ChatEventView(View):
     async def stream_events(self) -> t.AsyncGenerator:
-        DB = settings.DATABASES["default"]
-        dbname = DB["NAME"]
-        user = DB["USER"]
-        passwd = DB["PASSWORD"]
-        host = DB["HOST"]
-        port = DB["PORT"]
-
-        connection_str = (
-            f"dbname={dbname} user={user} password={passwd} host={host} port={port}"
-        )
+        connection_str = get_psycopg_connection_str()
         conn = await psycopg.AsyncConnection.connect(connection_str, autocommit=True)
         await conn.execute("LISTEN messages;")
 
@@ -298,7 +210,7 @@ class ChatEventView(View):
             if notify.payload == "stop":
                 break
 
-            yield "event: message\n"
+            yield "event:message\n"
             yield "data:created\n\n"
 
         yield "event: close\n"
@@ -316,14 +228,13 @@ class ChatEventView(View):
 
 
 class ChatForm(forms.Form):
-    name = forms.CharField()
+    user = forms.CharField()
     content = forms.CharField()
 
 
 class ChatView(View):
     def get(self, request: HttpRequest) -> HttpResponse:
-        guid = uuid.uuid4()
-        messages = core_models.Message.objects.all()
+        messages = db_models.Message.objects.all().order_by("-created_at")[:13]
         is_htmx_request = request.headers.get("HX-Request", "false") == "true"
 
         if is_htmx_request:
@@ -331,17 +242,26 @@ class ChatView(View):
         else:
             template_name = "core/chat.html"
 
-        return render(request, template_name, {"name": guid.hex, "messages": messages})
+        if "username" not in request.session:
+            guid = uuid.uuid4()
+            username = request.session["username"] = guid.hex
+        else:
+            username = request.session["username"]
+
+        return render(
+            request, template_name, {"user": username, "messages": messages[::-1]}
+        )
 
     def post(self, request: HttpRequest) -> HttpResponse:
         form = ChatForm(data=request.POST)
 
         if form.is_valid():
-            name = form.cleaned_data["name"]
+            user = form.cleaned_data["user"]
             content = form.cleaned_data["content"]
-            core_models.Message.objects.create(name=name, content=content)
+            db_models.Message.objects.create(user=user, content=content)
+            request.session["username"] = user
 
             with connection.cursor() as cursor:
-                cursor.execute("NOTIFY messages, 'test'")
+                cursor.execute("NOTIFY messages")
 
         return HttpResponse(b"")

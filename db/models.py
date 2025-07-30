@@ -2,13 +2,23 @@ from django.db import models
 from django.contrib.postgres import fields as pgfields
 from django.db.models import expressions as db_expressions
 
+DEFAULT_VERSION = 1
+
+
+class DbError(Exception): ...
+
+
+class OptimisticUpdateError(DbError): ...
+
 
 class Customer(models.Model):
+    """Models a customer."""
+
     name = models.CharField(blank=True, max_length=255)
     address = models.TextField(blank=True)
-    version = models.IntegerField(db_default="1", default=1)
+    version = models.IntegerField(db_default=DEFAULT_VERSION, default=DEFAULT_VERSION)
     sys_period = pgfields.DateTimeRangeField(
-        db_default=db_expressions.RawSQL("tstzrange(current_timestamp, null)", [])
+        db_default=db_expressions.RawSQL("TSTZRANGE(CURRENT_TIMESTAMP, null)", [])
     )
 
     class Meta:
@@ -25,18 +35,23 @@ class Customer(models.Model):
         return Customer.objects.create(name=name, address=address)
 
     def update(self, name: str, address: str) -> None:
-        update_count = Customer.objects.filter(id=self.pk).update(
-            name=name, address=address
-        )
+        customer_id = self.pk
+        update_count = Customer.objects.filter(
+            id=customer_id, version=self.version
+        ).update(name=name, address=address)
 
         if update_count != 1:
-            raise Exception(":(")
+            raise OptimisticUpdateError(f"Failed to update customer {customer_id}")
 
         self.refresh_from_db()
 
 
 class CustomerHistory(models.Model):
+    """Models customer history."""
+
     hid = models.BigAutoField(primary_key=True)
+
+    # Customer model fields
     id = models.BigIntegerField()
     name = models.CharField(null=True)
     address = models.TextField(null=True)
@@ -50,7 +65,9 @@ class CustomerHistory(models.Model):
 
 
 class Message(models.Model):
-    name = models.CharField()
+    """Models a chat message."""
+
+    user = models.CharField()
     content = models.TextField()
     sent_after = models.DateTimeField(null=True)
     sent_at = models.DateTimeField(null=True)
