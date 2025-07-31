@@ -265,3 +265,8 @@ class ChatView(View):
                 cursor.execute("NOTIFY messages")
 
         return HttpResponse(b"")
+
+
+class SioView(View):
+    def get(self, request: HttpRequest) -> HttpResponse:
+        return render(request, "core/sio.html", {})

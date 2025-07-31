@@ -9,4 +9,5 @@ urlpatterns = [
 	path(r"spv/", core_views.SPVIew.as_view(), name="spv"),
 	path(r"favicon.ico", core_views.favicon_view, name="favicon"),
 	path(r"sse/", core_views.stream_view, name="sse"),
+	path(r"sio/", core_views.SioView.as_view(), name="sio"),
 ]

@@ -1,0 +1,57 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>SIO</title>
+	<script src="{% static 'js/socket.io.min.js' %}"></script>
+	<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+
+<body class="p-2">
+	<h1 class="text-6xl">SIO</h1>
+	<div class="flex flex-row gap-2">
+		<div id="clients" class="basis-1/2 border-1 h-[40vh]"></div>
+		<div id="tracker" class="basis-1/2 border-1 h-[40vh]"></div>
+	</div>
+	<script>
+		var sid = "";
+		var connectedClients = {};
+		const socket = io({
+			transports: ["websocket"],
+			extraHeaders: { "my-custom-header": "1234" }
+		});
+		const clients = document.getElementById("clients");
+		const tracker = document.getElementById("tracker");
+		const renderClients = () => {
+			let items = Object.entries(connectedClients).map(([sid, data]) => {
+				return `<li>${sid}: x=${data.clientX} y=${data.clientY}</li>`;
+			});
+			clients.innerHTML = `<ul>${items.join("")}</ul>`;
+		}
+		socket.on("connected", (e) => {
+			sid = e.sid;
+			connectedClients[sid] = { clientX: "", clientY: "" };
+			renderClients();
+		})
+		socket.on("disconnected", (e) => {
+			delete connectedClients[sid]
+			renderClients();
+		})
+		socket.io.on("reconnect", (e) => {
+			delete connectedClients[sid]
+			renderClients();
+		});
+		socket.on("mousemove_pub", (e) => {
+			connectedClients[e.sid] = {clientX: e.clientX, clientY: e.clientY};
+			renderClients();
+		});
+		tracker.addEventListener("mousemove", (e) => {
+			socket.emit("mousemove", { clientX: e.clientX, clientY: e.clientY });
+		});
+	</script>
+</body>
+
+</html>

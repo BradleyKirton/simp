@@ -7,12 +7,15 @@ For more information on this file, see
 https://docs.djangoproject.com/en/5.2/howto/deployment/asgi/
 """
 
-import os
 import mimetypes
+import os
+
+import socketio
+from asgiref import typing as t
 from django.conf import settings
 from django.contrib.staticfiles import finders
 from django.core.asgi import ASGIHandler, get_asgi_application
-from asgiref import typing as t
+from core.sio import sio
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
@@ -108,5 +111,6 @@ class PathSendApp:
                 raise ValueError(f"Unhandled ASGI scope {unhandled}")
 
 
-django_app = get_asgi_application()
-application = PathSendApp(app=django_app)
+application = get_asgi_application()
+application = PathSendApp(app=application)
+application = socketio.ASGIApp(sio, application)
