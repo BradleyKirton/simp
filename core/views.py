@@ -112,7 +112,7 @@ class SPVIew(View):
     def post(self, request: HttpRequest) -> HttpResponse:
         action = request.POST.get("a", "")
         event_name = ""
-        print(action)
+
         if action == "create":
             customer_form = CustomerAddForm(request.POST)
             template_name = "core/spi.html#create_customer"
@@ -253,7 +253,6 @@ class ChatView(View):
         )
 
     def post(self, request: HttpRequest) -> HttpResponse:
-        print(request.POST)
         form = ChatForm(data=request.POST)
 
         if form.is_valid():

@@ -39,9 +39,11 @@ class Action(enum.StrEnum):
 def run() -> None:
     def shutdown(*args: object, **kwargs: object) -> None:
         runserver.terminate()
+
         subprocess.run(
-            ["podman-compose", "-f", "compose-local.yml", "down"],
+            shlex.split("podman-compose -f compose-local.yml down"),
             env=environ,
+            cwd=PROJECT_PATH,
         )
         print("Killing services.")
 
@@ -51,9 +53,28 @@ def run() -> None:
     signal.signal(signal.SIGINT, shutdown)
 
     subprocess.run(
-        ["podman-compose", "-f", "compose-local.yml", "up", "-d"], env=environ
+        shlex.split("podman-compose -f compose-local.yml up -d"),
+        env=environ,
+        cwd=PROJECT_PATH,
     )
-    runserver = subprocess.Popen(["uv", "run", "manage.py", "runserver"], env=environ)
+
+    django_command = [
+        "uv",
+        "run",
+        "granian",
+        "--reload",
+        "--reload-paths=core",
+        "--reload-paths=config",
+        "--reload-paths=db",
+        "--interface=asginl",
+        "--loop=uvloop",
+        "config.asgi:application",
+    ]
+    runserver = subprocess.Popen(
+        django_command,
+        env=environ,
+        cwd=PROJECT_PATH,
+    )
 
     signal.pause()
 
@@ -96,9 +117,9 @@ def manage_django(extra_args: list[str]) -> None:
     try:
         subprocess.run(
             manage_command,
-            cwd=PROJECT_PATH,
             check=True,
             env=environ,
+            cwd=PROJECT_PATH,
         )
     except KeyboardInterrupt:
         pass

@@ -1,5 +1,5 @@
 dumps
-pgdata
+.pgdata
 pgsockets
 meilisearch-linux-amd64
 data.ms
