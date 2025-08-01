@@ -287,13 +287,18 @@ class ZmqIpcStreamView(View):
         should_subscribe = True
 
         while should_subscribe:
-            async for data in ipc.subscribe():
+            try:
+                data = await ipc.subscribe()
+
                 if data == "break":
                     should_subscribe = False
                     break
 
                 yield "event:current_time\n"
-                yield "data:\n\n"
+                yield "data:current_time\n\n"
+            except TimeoutError:
+                yield "event:ping\n"
+                yield "data:ping\n\n"
 
         yield "event:disconnected\n"
         yield "data:\n\n"

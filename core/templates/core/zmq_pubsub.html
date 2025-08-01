@@ -19,12 +19,13 @@
 	</form>
 	<hr>
 	<div hx-ext="sse" sse-connect="{% url 'zmqsse' %}" sse-close="disconnected">
+		<div hx-get="{% url 'zmq' %}?p=current_time" hx-trigger="sse:current_time" hx-target="#currentTime">
 		{% partialdef current_time %}
-		<div hx-get="{% url 'zmq' %}?p=current_time" hx-trigger="sse:current_time">
-			{{ current_time }}
-		</div>
+			<p id="currentTime">{{ current_time }}</p>
 		{% endpartialdef %}
+		</div>
 		{% partial current_time %}
+		<div hx-get="{% url 'zmq' %}?p=pong" hx-trigger="sse:ping" hx-swap="none"></div>
 	</div>
 </body>
 </html>
