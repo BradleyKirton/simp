@@ -17,35 +17,49 @@
 		<div id="tracker" class="basis-1/2 border-1 h-[40vh]"></div>
 	</div>
 	<script>
-		var sid = "";
 		var connectedClients = {};
 		const socket = io({
+			query: { username: "{{ username }}" },
 			transports: ["websocket"],
-			extraHeaders: { "my-custom-header": "1234" }
 		});
 		const clients = document.getElementById("clients");
 		const tracker = document.getElementById("tracker");
 		const renderClients = () => {
-			let items = Object.entries(connectedClients).map(([sid, data]) => {
-				return `<li>${sid}: x=${data.clientX} y=${data.clientY}</li>`;
+			let items = Object.entries(connectedClients).map(([username, data]) => {
+				return `<li>${username}: x=${data.clientX} y=${data.clientY}</li>`;
 			});
 			clients.innerHTML = `<ul>${items.join("")}</ul>`;
 		}
 		socket.on("connected", (e) => {
-			sid = e.sid;
-			connectedClients[sid] = { clientX: "", clientY: "" };
+			let connectedSids = e.connectedSids;
+			connectedSids.forEach((sid) => {
+				let clientX = "";
+				let clientY = "";
+				if ( sid in connectedClients ) {
+					clientX = connectedClients[sid].clientX;
+					clientY = connectedClients[sid].clientY;
+				};
+				connectedClients[sid] = { clientX: clientX, clientY: clientY }
+			})
 			renderClients();
 		})
 		socket.on("disconnected", (e) => {
-			delete connectedClients[sid]
+			let connectedSids = e.connectedSids;
+
+			connectedSids.forEach((sid) => {
+				if ( !connectedClients.hasOwnProperty(sid) ) {
+					connectedClients[e.sid] = { clientX: "", clientY: "" };
+				}
+			})
+			Object.keys(connectedClients).forEach(sid => {
+				if ( !connectedSids.includes(sid) ) {
+					delete connectedClients[e.sid]
+				}
+			})
 			renderClients();
 		})
-		socket.io.on("reconnect", (e) => {
-			delete connectedClients[sid]
-			renderClients();
-		});
 		socket.on("mousemove_pub", (e) => {
-			connectedClients[e.sid] = {clientX: e.clientX, clientY: e.clientY};
+			connectedClients[e.sid] = { clientX: e.clientX, clientY: e.clientY };
 			renderClients();
 		});
 		tracker.addEventListener("mousemove", (e) => {

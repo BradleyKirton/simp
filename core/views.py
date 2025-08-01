@@ -269,4 +269,9 @@ class ChatView(View):
 
 class SioView(View):
     def get(self, request: HttpRequest) -> HttpResponse:
-        return render(request, "core/sio.html", {})
+        if "username" not in request.session:
+            username = f"{uuid.uuid4()}"
+            request.session["username"] = username
+        else:
+            username = request.session["username"]
+        return render(request, "core/sio.html", {"username": username})
