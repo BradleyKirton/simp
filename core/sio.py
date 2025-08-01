@@ -1,5 +1,5 @@
 import socketio
-from django.core.handlers.wsgi import get_str_from_wsgi, get_path_info, get_script_name
+from django.core.handlers.wsgi import get_str_from_wsgi
 from django.contrib.sessions.backends.db import SessionStore
 from django.http.request import QueryDict
 from django.conf import settings
@@ -24,6 +24,7 @@ def get_session(environ):
 @sio.event
 async def connect(sid, environ):
     """
+    from django.core.handlers.wsgi import get_str_from_wsgi, get_path_info, get_script_name
     path = get_path_info(environ)
     script_name = get_script_name(environ)
     print(script_name)

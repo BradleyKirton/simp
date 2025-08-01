@@ -1,0 +1,30 @@
+{% load partials %}
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>ZMQ Pub/Sub</title>
+	<script src="{% static 'js/htmx.min.js' %}"></script>
+	<script src="{% static 'js/htmx-ext-sse.min.js' %}"></script>
+</head>
+<body>
+	<h1>ZMQ IPC Publish Subscribe</h1>
+	<form
+		hx-post="{% url 'zmq' %}"
+		hx-swap="none">
+		{% csrf_token %}
+		<button>Submit</button>
+	</form>
+	<hr>
+	<div hx-ext="sse" sse-connect="{% url 'zmqsse' %}" sse-close="disconnected">
+		{% partialdef current_time %}
+		<div hx-get="{% url 'zmq' %}?p=current_time" hx-trigger="sse:current_time">
+			{{ current_time }}
+		</div>
+		{% endpartialdef %}
+		{% partial current_time %}
+	</div>
+</body>
+</html>

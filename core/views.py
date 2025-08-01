@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import random
 import typing as t
 import uuid
@@ -14,6 +15,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import lorem_ipsum
 from django.views import View
 
+from core import ipc
 from db import aconn
 from db import models as db_models
 
@@ -275,3 +277,48 @@ class SioView(View):
         else:
             username = request.session["username"]
         return render(request, "core/sio.html", {"username": username})
+
+
+class ZmqIpcStreamView(View):
+    async def stream_events(self) -> t.AsyncGenerator:
+        yield "event:connected\n"
+        yield "data:\n\n"
+
+        should_subscribe = True
+
+        while should_subscribe:
+            async for data in ipc.subscribe():
+                if data == "break":
+                    should_subscribe = False
+                    break
+
+                yield "event:current_time\n"
+                yield "data:\n\n"
+
+        yield "event:disconnected\n"
+        yield "data:\n\n"
+
+    async def get(self, request: HttpRequest) -> StreamingHttpResponse:
+        return StreamingHttpResponse(
+            self.stream_events(),
+            content_type="text/event-stream",
+            headers={"Cache-Control": "no-cache"},
+        )
+
+
+class ZmqIpcView(View):
+    async def get(self, request: HttpRequest) -> HttpResponse:
+        if request.GET.get("p", "") == "current_time":
+            template_name = "core/zmq_pubsub.html#current_time"
+        else:
+            template_name = "core/zmq_pubsub.html"
+
+        current_time = datetime.datetime.now()
+
+        return render(
+            request, template_name, {"current_time": current_time.isoformat()}
+        )
+
+    async def post(self, request: HttpRequest) -> HttpResponse:
+        await ipc.publish("SUCCESS")
+        return HttpResponse(b"")

@@ -2629,6 +2629,7 @@ dependencies = [
     { name = "ollama" },
     { name = "psycopg", extra = ["binary", "pool"] },
     { name = "python-socketio", extra = ["asyncio-client"] },
+    { name = "pyzmq" },
 ]
 
 [package.dev-dependencies]
@@ -2653,6 +2654,7 @@ requires-dist = [
     { name = "ollama", specifier = ">=0.5.1" },
     { name = "psycopg", extras = ["binary", "pool"], specifier = ">=3.2.9" },
     { name = "python-socketio", extras = ["asyncio-client"], specifier = ">=5.13.0" },
+    { name = "pyzmq", specifier = ">=27.0.0" },
 ]
 
 [package.metadata.requires-dev]
