@@ -48,6 +48,12 @@
 			</div>
 		</div>
 	</div>
+	<p>Task count: <span id="taskCount"></span></p>
+	<script>
+		document.body.addEventListener("htmx:sseMessage", function (e) {
+		    window.taskCount.innerText = e.detail.data;
+		})
+	</script>
 </body>
 
 </html>

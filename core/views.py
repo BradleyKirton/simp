@@ -201,7 +201,7 @@ class SPVIew(View):
 
 
 class ChatEventView(View):
-    async def stream_events(
+    async def event_stream(
         self, pool: psycopg_pool.AsyncConnectionPool[psycopg.AsyncConnection]
     ) -> t.AsyncGenerator:
         yield "event:connected\n"
@@ -214,22 +214,21 @@ class ChatEventView(View):
                 if notify.payload == "stop":
                     break
 
+                task_count = len(asyncio.all_tasks())
                 yield "event:message\n"
-                yield "data:created\n\n"
+                yield f"data:{task_count}\n\n"
 
         yield "event: close\n"
         yield "data:\n\n"
 
     async def get(self, request: HttpRequest) -> StreamingHttpResponse:
         pool = await aconn.get_connection_pool()
-        return StreamingHttpResponse(
-            self.stream_events(pool=pool),
-            content_type="text/event-stream",
-            headers={
-                "X-Accel-Buffering": "no",
-                "Cache-Control": "no-cache",
-            },
+        response = StreamingHttpResponse(
+            self.event_stream(pool=pool), content_type="text/event-stream"
         )
+        response["Cache-Control"] = "nocache"
+        response["Connection"] = "keep-alive"
+        return response
 
 
 class ChatForm(forms.Form):
@@ -254,7 +253,9 @@ class ChatView(View):
             username = request.session["username"]
 
         return render(
-            request, template_name, {"user": username, "messages": messages[::-1]}
+            request,
+            template_name,
+            {"user": username, "messages": messages[::-1]},
         )
 
     def post(self, request: HttpRequest) -> HttpResponse:
@@ -387,9 +388,7 @@ class TaskCountView(View):
 
 
 class ValKeyIpcStreamView(View):
-    async def event_stream(
-        self, client: GlideClient
-    ) -> t.AsyncGenerator:
+    async def event_stream(self, client: GlideClient) -> t.AsyncGenerator:
         try:
             yield "event:connected\n"
             yield "data:\n\n"
