@@ -1,9 +1,11 @@
 import asyncio
 import datetime
+from logging import StreamHandler
+import time
 import random
 import typing as t
 import uuid
-
+import json
 import ollama
 import psycopg
 import psycopg_pool
@@ -14,7 +16,8 @@ from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import lorem_ipsum
 from django.views import View
-
+from glide import GlideClientConfiguration, NodeAddress, GlideClient
+from glide.async_commands.core import CoreCommands
 from core import ipc
 from db import aconn
 from db import models as db_models
@@ -326,4 +329,143 @@ class ZmqIpcView(View):
 
     async def post(self, request: HttpRequest) -> HttpResponse:
         await ipc.publish("SUCCESS")
+        return HttpResponse(b"")
+
+
+async def task_count_sse(request: HttpRequest) -> StreamingHttpResponse:
+    async def event_stream() -> t.AsyncGenerator:
+        yield "event: connected\n"
+        yield "data: connected\n\n"
+
+        while True:
+            await asyncio.sleep(1)
+
+            yield "event: ping\n"
+            yield "data: ping\n\n"
+
+    stream = event_stream()
+    response = StreamingHttpResponse(stream, content_type="text/event-stream")
+    response["Connection"] = "keep-alive"
+    response["Cache-Control"] = "no-cache"
+    return response
+
+
+class TaskCountSSEView(View):
+    async def event_stream(self, client: GlideClient) -> t.AsyncGenerator:
+        try:
+            yield "event: connected\n"
+            yield "data: connected\n\n"
+
+            while True:
+                guid = uuid.uuid4()
+                yield "event: message\n"
+                yield f"data: {guid.hex}\n\n"
+
+                await asyncio.sleep(1)
+        finally:
+            await client.close()
+
+    async def get(self, request: HttpRequest) -> StreamingHttpResponse:
+        addresses = [NodeAddress("localhost", 6379)]
+        config = GlideClientConfiguration(addresses, request_timeout=500)
+        client = await GlideClient.create(config)
+        stream = self.event_stream(client)
+        response = StreamingHttpResponse(stream, content_type="text/event-stream")
+        response["Connection"] = "keep-alive"
+        response["Cache-Control"] = "no-cache"
+        return response
+
+
+class TaskCountView(View):
+    async def get(self, request: HttpRequest) -> HttpResponse:
+        task_count = len(asyncio.all_tasks())
+        return render(
+            request,
+            "core/task_count.html",
+            {"task_count": task_count},
+        )
+
+
+class ValKeyIpcStreamView(View):
+    async def event_stream(
+        self, client: GlideClient
+    ) -> t.AsyncGenerator:
+        try:
+            yield "event:connected\n"
+            yield "data:\n\n"
+
+            while True:
+                data = await client.get_pubsub_message()
+
+                if data.message == b"break":
+                    break
+
+                yield "event:current_time\n"
+                yield "data:current_time\n\n"
+
+            yield "event:disconnected\n"
+            yield "data:\n\n"
+
+        finally:
+            await client.close()
+
+    async def get(self, request: HttpRequest) -> StreamingHttpResponse:
+        _ = await request.session.aget("username")  # type: ignore
+        addresses = [NodeAddress("localhost", 6379)]
+        PubSubSubscriptions = GlideClientConfiguration.PubSubSubscriptions
+        PubSubChannelModes = GlideClientConfiguration.PubSubChannelModes
+        pubsub_subscriptions = PubSubSubscriptions(
+            {PubSubChannelModes.Exact: set(["ipc"])},
+            callback=None,
+            context=None,
+        )
+        config = GlideClientConfiguration(
+            addresses, request_timeout=500, pubsub_subscriptions=pubsub_subscriptions
+        )
+        client = await GlideClient.create(config)
+        response = StreamingHttpResponse(
+            self.event_stream(client),
+            content_type="text/event-stream",
+        )
+        response["Connection"] = "keep-alive"
+        response["Cache-Control"] = "no-cache"
+        return response
+
+
+class ValKeyIpcView(View):
+    async def get(self, request: HttpRequest) -> HttpResponse:
+        if request.GET.get("p", "") == "current_time":
+            username = await request.session.aget("username")  # type: ignore
+            template_name = "core/valkey_pubsub.html#current_time"
+        elif request.GET.get("p", "") == "pong":
+            addresses = [NodeAddress("localhost", 6379)]
+            config = GlideClientConfiguration(addresses, request_timeout=500)
+            client = await GlideClient.create(config)
+            ponged_at = datetime.datetime.now(datetime.UTC)
+            username = await request.session.aget("username")  # type: ignore
+            await client.publish(ponged_at.isoformat(), f"username:{username}")
+            return HttpResponse(b"")
+        else:
+            username = uuid.uuid4()
+            template_name = "core/valkey_pubsub.html"
+            await request.session.aset("username", f"{username.hex}")  # type: ignore
+
+        task_count = len(asyncio.all_tasks())
+        current_time = datetime.datetime.now()
+        return render(
+            request,
+            template_name,
+            {
+                "current_time": current_time.isoformat(),
+                "username": username,
+                "task_count": task_count,
+            },
+        )
+
+    async def post(self, request: HttpRequest) -> HttpResponse:
+        addresses = [NodeAddress("localhost", 6379)]
+        config = GlideClientConfiguration(addresses, request_timeout=500)
+        client = await GlideClient.create(config)
+        await client.publish("", "ipc")
+        await client.close()
         return HttpResponse(b"")

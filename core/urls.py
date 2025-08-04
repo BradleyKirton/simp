@@ -12,4 +12,8 @@ urlpatterns = [
     path(r"sio/", core_views.SioView.as_view(), name="sio"),
     path(r"zmq/sse/", core_views.ZmqIpcStreamView.as_view(), name="zmqsse"),
     path(r"zmq/", core_views.ZmqIpcView.as_view(), name="zmq"),
+    path(r"valkey/sse/", core_views.ValKeyIpcStreamView.as_view(), name="valkeysse"),
+    path(r"valkey/", core_views.ValKeyIpcView.as_view(), name="valkey"),
+    path(r"test/", core_views.TaskCountView.as_view(), name="task_count"),
+    path(r"test/sse/", core_views.TaskCountSSEView.as_view(), name="task_count_sse"),
 ]

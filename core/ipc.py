@@ -12,10 +12,10 @@ class Publisher:
     def __init__(self, addr: str) -> None:
         self._ctx = zmq.asyncio.Context.instance()
         self._socket = self._ctx.socket(zmq.PUB)
-        self._socket.bind(addr)
+        self._socket.connect(addr)
 
     async def __call__(self, data: str) -> None:
-        await self._socket.send_string(data)
+        await self._socket.send_multipart([b"", data.encode()])
 
 
 class Subscriber:
@@ -27,16 +27,15 @@ class Subscriber:
         self._socket = self._ctx.socket(zmq.SUB)
         self._socket.connect(self._addr)
         self._socket.setsockopt(zmq.RCVTIMEO, self._timeout)
-
-        for topic in self._topics:
-            self._socket.setsockopt_string(zmq.SUBSCRIBE, topic)
+        self._socket.setsockopt(zmq.SUBSCRIBE, b"")
 
     async def __call__(self) -> str:
         try:
-            return await self._socket.recv_string()
+            _, data = await self._socket.recv_multipart()
+            return data.decode()
         except zmq.error.Again:
             raise TimeoutError("Socket timeout.")
 
 
-publish = Publisher("ipc:///tmp/pubsub")
-subscribe = Subscriber("ipc:///tmp/pubsub", topics=[""], timeout=5000)
+publish = Publisher("ipc:///tmp/ipcpub")
+subscribe = Subscriber("ipc:///tmp/ipcsub", topics=[""], timeout=5000)

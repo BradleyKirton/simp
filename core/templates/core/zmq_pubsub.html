@@ -27,5 +27,13 @@
 		{% partial current_time %}
 		<div hx-get="{% url 'zmq' %}?p=pong" hx-trigger="sse:ping" hx-swap="none"></div>
 	</div>
+
+	<div>
+		<h2>Findings</h2>
+		<ul>
+			<li>Pub sub alone only supports a single process as each bind unlinks and recreates the domain socket</li>
+			<li>In order to use ZMQ one would need a separate process and use the XPUB, XSUB proxy pattern</li>
+		</ul>
+	</div>
 </body>
 </html>
