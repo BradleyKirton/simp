@@ -1,0 +1,24 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>PyValKey</title>
+
+	<script src="{% static 'js/htmx.min.js' %}"></script>
+	<script src="{% static 'js/htmx-ext-sse.min.js' %}"></script>
+</head>
+
+<body>
+	<h1>PyValKey</h1>
+	<div
+		hx-ext="sse"
+		sse-connect="{% url 'valkeysse_2' %}"
+		sse-close="disconnected"
+		sse-swap="current_time"></div>
+	<div>Task count: {{ task_count }}</div>
+</body>
+
+</html>

@@ -14,8 +14,8 @@ dependencies = [
     "ollama>=0.5.1",
     "psycopg[binary,pool]>=3.2.9",
     "python-socketio[asyncio-client]>=5.13.0",
-    "pyvalkey>=0.0.5",
     "pyzmq>=27.0.0",
+    "valkey>=6.1.0",
     "valkey-glide>=2.0.1",
 ]
 

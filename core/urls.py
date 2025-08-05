@@ -16,4 +16,6 @@ urlpatterns = [
     path(r"valkey/", core_views.ValKeyIpcView.as_view(), name="valkey"),
     path(r"test/", core_views.TaskCountView.as_view(), name="task_count"),
     path(r"test/sse/", core_views.TaskCountSSEView.as_view(), name="task_count_sse"),
+    path(r"valkey_2/sse/", core_views.valkey_stream, name="valkeysse_2"),
+    path(r"valkey_2/", core_views.valkey_view, name="valkey_2"),
 ]

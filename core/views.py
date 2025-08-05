@@ -1,14 +1,13 @@
 import asyncio
 import datetime
-from logging import StreamHandler
-import time
 import random
 import typing as t
 import uuid
-import json
 import ollama
 import psycopg
 import psycopg_pool
+import valkey.asyncio as valkey
+from valkey.asyncio.client import PubSub
 from django import forms
 from django.conf import settings
 from django.db import connection
@@ -17,7 +16,6 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import lorem_ipsum
 from django.views import View
 from glide import GlideClientConfiguration, NodeAddress, GlideClient
-from glide.async_commands.core import CoreCommands
 from core import ipc
 from db import aconn
 from db import models as db_models
@@ -468,3 +466,45 @@ class ValKeyIpcView(View):
         await client.publish("", "ipc")
         await client.close()
         return HttpResponse(b"")
+
+
+valkey_pool = valkey.ConnectionPool(host="localhost", port=6379)
+
+
+async def valkey_stream(request: HttpRequest) -> StreamingHttpResponse:
+    async def event_stream() -> t.AsyncIterator:
+        yield "event: connected\n"
+        yield "data:\n\n"
+
+        conn = valkey.Valkey.from_pool(valkey_pool)
+        async with conn.pubsub() as pubsub:
+            await pubsub.subscribe("channel:ipc")
+
+            while True:
+                message = await pubsub.get_message(ignore_subscribe_messages=True)
+
+                if message is None:
+                    continue
+
+                data = message["data"].decode()
+
+                if data == "break":
+                    break
+
+                current_time = datetime.datetime.now()
+                current_time_serialized = current_time.isoformat()
+                yield "event: current_time\n"
+                yield f"data: {current_time_serialized}\n\n"
+
+        yield "event:disconnected\n"
+        yield "data:\n\n"
+
+    response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
+    response["Cache-Control"] = "no-cache"
+    response["Connection"] = "keep-alive"
+    return response
+
+
+async def valkey_view(request: HttpRequest) -> HttpResponse:
+    task_count = len(asyncio.all_tasks())
+    return render(request, "core/pyvalkey_pubsub.html", {"task_count": task_count})
