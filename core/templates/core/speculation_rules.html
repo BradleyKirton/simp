@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Speculation Rules</title>
+	<style>
+		@view-transition {
+			navigation: auto;
+		}
+
+		::view-transition-old(root),
+		::view-transition-new(root) {
+			animation: fade 250ms ease both;
+		}
+
+		@keyframes fade {
+			from {
+				opacity: 0;
+			}
+
+			to {
+				opacity: 1;
+			}
+		}
+
+		;
+	</style>
+</head>
+
+<body>
+	<h1></h1>
+	<a href="{% url 'speculation' %}">Home</a>
+	<a href="{% url 'speculation_a' %}">A</a>
+	<a href="{% url 'speculation_b' %}">B</a>
+
+	{% block content %}
+	<div>
+		<h1>Index</h1>
+	</div>
+	{% endblock %}
+	<script type="speculationrules">
+		{
+			"prerender": [
+				{
+					"where": {
+						"and": [
+							{
+								"href_matches": "/*"
+							}
+
+						]
+					}
+				}
+			]
+		}
+	</script>
+</body>
+
+</html>

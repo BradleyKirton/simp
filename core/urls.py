@@ -20,4 +20,25 @@ urlpatterns = [
     path(r"valkey_2/", core_views.valkey_view, name="valkey_2"),
     path(r"datastar/", core_views.datastar_view, name="datastar"),
     path(r"datastar/sse/", core_views.datastar_sse_view, name="datastarsse"),
+    path(
+        r"speculation/",
+        core_views.SpeculationRulesView.as_view(
+            template_name="core/speculation_rules.html"
+        ),
+        name="speculation",
+    ),
+    path(
+        r"speculation/a/",
+        core_views.SpeculationRulesView.as_view(
+            template_name="core/speculation_rules_a.html"
+        ),
+        name="speculation_a",
+    ),
+    path(
+        r"speculation/b/",
+        core_views.SpeculationRulesView.as_view(
+            template_name="core/speculation_rules_b.html"
+        ),
+        name="speculation_b",
+    ),
 ]

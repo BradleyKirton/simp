@@ -540,3 +540,14 @@ def datastar_view(request: HttpRequest) -> HttpResponse:
         return render(request, "core/datastar.html#get_partial", {})
 
     return render(request, "core/datastar.html", {})
+
+
+class SpeculationRulesView(View):
+    template_name: str = ""
+
+    def __init__(self, template_name: str, **kwargs: t.Any) -> None:
+        super().__init__(**kwargs)
+        self.template_name = template_name
+
+    def get(self, request: HttpRequest) -> HttpResponse:
+        return render(request, self.template_name, {})
