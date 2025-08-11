@@ -3,11 +3,11 @@ import datetime
 import random
 import typing as t
 import uuid
+
 import ollama
 import psycopg
 import psycopg_pool
 import valkey.asyncio as valkey
-from valkey.asyncio.client import PubSub
 from django import forms
 from django.conf import settings
 from django.db import connection
@@ -15,7 +15,8 @@ from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import lorem_ipsum
 from django.views import View
-from glide import GlideClientConfiguration, NodeAddress, GlideClient
+from glide import GlideClient, GlideClientConfiguration, NodeAddress
+
 from core import ipc
 from db import aconn
 from db import models as db_models
@@ -441,6 +442,7 @@ class ValKeyIpcView(View):
             ponged_at = datetime.datetime.now(datetime.UTC)
             username = await request.session.aget("username")  # type: ignore
             await client.publish(ponged_at.isoformat(), f"username:{username}")
+            await client.close()
             return HttpResponse(b"")
         else:
             username = uuid.uuid4()
@@ -508,3 +510,33 @@ async def valkey_stream(request: HttpRequest) -> StreamingHttpResponse:
 async def valkey_view(request: HttpRequest) -> HttpResponse:
     task_count = len(asyncio.all_tasks())
     return render(request, "core/pyvalkey_pubsub.html", {"task_count": task_count})
+
+
+async def datastar_sse_view(request: HttpRequest) -> StreamingHttpResponse:
+    async def event_stream() -> t.AsyncIterator[str]:
+        yield "event: connected\n"
+        yield "data:\n\n"
+
+        while True:
+            div_id = random.choice([1, 2, 3, 4, 5])
+            colour = random.choice(["blue", "red", "green"])
+
+            yield "event: datastar-patch-elements\n"
+            yield "data: mode outer\n"
+            yield "data: useViewTransition true\n"
+            yield f'data: elements <div id="{div_id}" style="background: {colour}; width: 100px; height: 10px;"></div>\n\n'
+            await asyncio.sleep(1.0 / 4.0)
+
+    response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
+    response["Cache-Control"] = "no-cache"
+    response["Connection"] = "keep-alive"
+    return response
+
+
+def datastar_view(request: HttpRequest) -> HttpResponse:
+    action = request.GET.get("a", "")
+
+    if action == "get_partial":
+        return render(request, "core/datastar.html#get_partial", {})
+
+    return render(request, "core/datastar.html", {})

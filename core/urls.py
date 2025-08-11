@@ -18,4 +18,6 @@ urlpatterns = [
     path(r"test/sse/", core_views.TaskCountSSEView.as_view(), name="task_count_sse"),
     path(r"valkey_2/sse/", core_views.valkey_stream, name="valkeysse_2"),
     path(r"valkey_2/", core_views.valkey_view, name="valkey_2"),
+    path(r"datastar/", core_views.datastar_view, name="datastar"),
+    path(r"datastar/sse/", core_views.datastar_sse_view, name="datastarsse"),
 ]

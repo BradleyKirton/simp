@@ -1,0 +1,60 @@
+{% load coretags %}
+{% load partials %}
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Datastar</title>
+	<script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@main/bundles/datastar.js"></script>
+</head>
+<body>
+	<h1>Datastar</h1>	
+	<div>
+		<h2>Data binding</h2>
+		<input data-bind="text">
+		<p data-text="$text"></p>
+	</div>
+	<div>
+		<h2>Computed Props</h2>
+		<script>
+			function replaceVowels(text) {
+				let re = new RegExp("[aeiou]+", "g");
+				return text.replace(re, '');
+			}
+		</script>
+		<p>No vowels</p>
+		<p data-computed-textnovowel="replaceVowels($text)" data-text="$textnovowel"></p>
+	</div>
+
+	<div>
+		<pre style="border: 2px solid black;">
+			{% blockescape %}
+				{% verbatim %}
+					{% partialdef get_partial %}
+					<div id="get_partial">Hello World from the server.</div>
+					{% endpartialdef %}
+				{% endverbatim %}
+			{% endblockescape %}
+		</pre>
+
+		{% partialdef get_partial %}
+		<div id="get_partial">Hello World from the server.</div>
+		{% endpartialdef %}
+
+		<div id="get_partial">...</div>
+		<div>
+			<button data-on-click="@get('{% url 'datastar' %}?a=get_partial')">Fetch</button>
+		</div>
+	</div>
+
+	<div data-on-load="@get('{% url 'datastarsse' %}')">
+		<h2>SSE</h2>
+		<div id="1" style="background: red; width: 100px; height: 10px;"></div>
+		<div id="2" style="background: red; width: 100px; height: 10px;"></div>
+		<div id="3" style="background: red; width: 100px; height: 10px;"></div>
+		<div id="4" style="background: red; width: 100px; height: 10px;"></div>
+		<div id="5" style="background: red; width: 100px; height: 10px;"></div>
+	</div>
+</body>
+</html>
