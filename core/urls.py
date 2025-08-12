@@ -1,6 +1,8 @@
 from django.urls import path
 from core import views as core_views
 
+
+
 urlpatterns = [
     path(r"", core_views.IndexView.as_view()),
     path(r"chat/", core_views.ChatView.as_view(), name="chat"),
@@ -41,4 +43,6 @@ urlpatterns = [
         ),
         name="speculation_b",
     ),
+    path("sw/", core_views.service_worker_view, name="sw"),
+    path("sw.js", core_views.service_worker_js_view, name="swjs"),
 ]

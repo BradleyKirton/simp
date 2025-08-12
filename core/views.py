@@ -24,7 +24,7 @@ from db import models as db_models
 
 def favicon_view(request: HttpRequest) -> HttpResponse:
     return HttpResponse(
-        b'<svg height="16" width="16" xmlns="http://www.w3.org/2000/svg"><text>E</text></svg>',
+        b'<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-bold"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path></svg>',
         content_type="image/svg+xml",
     )
 
@@ -553,3 +553,11 @@ class SpeculationRulesView(View):
         response = render(request, self.template_name, {})
         # response["Cache-Control"] = "public,max-age=31536000,immutable"
         return response
+
+
+def service_worker_view(request: HttpRequest) -> HttpResponse:
+    return render(request, "core/service_worker.html", {})
+
+
+def service_worker_js_view(request: HttpRequest) -> HttpResponse:
+    return render(request, "core/sw.js", {}, content_type="application/javascript")
