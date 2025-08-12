@@ -47,7 +47,7 @@ def run() -> None:
         )
         print("Killing services.")
 
-        runserver.wait()
+        runserver.wait(5)
         print("Will shutdown shortly.")
 
     signal.signal(signal.SIGINT, shutdown)

@@ -22,9 +22,26 @@
 				let re = new RegExp("[aeiou]+", "g");
 				return text.replace(re, '');
 			}
+			function caesarCiperThree(text) {
+				if ( !text ) return "";
+				return text
+					.split("")
+					.map(char => char.charCodeAt())
+					.map(code => {
+						if (code == "32") {
+							return " ";
+						} else {
+							return String.fromCharCode(Number(code) + 3)
+						}
+					})
+					.join("");
+			}
 		</script>
-		<p>No vowels</p>
+		<p><strong>No vowels</strong></p>
 		<p data-computed-textnovowel="replaceVowels($text)" data-text="$textnovowel"></p>
+
+		<p><strong>Caesar Cipher</strong></p>
+		<p data-computed-textcaesarthree="caesarCiperThree($text)" data-text="$textcaesarthree"></p>
 	</div>
 
 	<div>
