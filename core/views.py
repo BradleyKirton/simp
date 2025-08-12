@@ -550,4 +550,6 @@ class SpeculationRulesView(View):
         self.template_name = template_name
 
     def get(self, request: HttpRequest) -> HttpResponse:
-        return render(request, self.template_name, {})
+        response = render(request, self.template_name, {})
+        # response["Cache-Control"] = "public,max-age=31536000,immutable"
+        return response

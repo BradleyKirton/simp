@@ -7,12 +7,15 @@
 	<title>Speculation Rules</title>
 	<style>
 		@view-transition {
-			navigation: auto;
+			navigation: ;
 		}
 
-		::view-transition-old(root),
-		::view-transition-new(root) {
-			animation: fade 250ms ease both;
+		main {
+			view-transition-name: content;
+		}
+
+		::view-transition-group(content) {
+			animation: fade 250ms linear both;
 		}
 
 		@keyframes fade {
@@ -24,38 +27,34 @@
 				opacity: 1;
 			}
 		}
-
-		;
 	</style>
 </head>
 
 <body>
-	<h1></h1>
+	<script type="speculationrules">
+		{
+			"prerender": [
+		      {
+		        "urls": [
+		        	"{% url 'speculation' %}",
+		        	"{% url 'speculation_a' %}",
+		        	"{% url 'speculation_b' %}"
+		        ],
+		        "eagerness": "immediate"
+		      }
+			]
+		}
+	</script>
+	<h1>Speculation Rules</h1>
 	<a href="{% url 'speculation' %}">Home</a>
 	<a href="{% url 'speculation_a' %}">A</a>
 	<a href="{% url 'speculation_b' %}">B</a>
 
-	{% block content %}
-	<div>
+	<main>
+		{% block content %}
 		<h1>Index</h1>
-	</div>
-	{% endblock %}
-	<script type="speculationrules">
-		{
-			"prerender": [
-				{
-					"where": {
-						"and": [
-							{
-								"href_matches": "/*"
-							}
-
-						]
-					}
-				}
-			]
-		}
-	</script>
+		{% endblock %}
+	</main>
 </body>
 
 </html>
