@@ -1,7 +1,6 @@
 import asyncio
 import dataclasses
 import datetime
-from operator import eq
 import time
 import random
 import typing as t
@@ -698,8 +697,9 @@ async def conway_see_view(request: HttpRequest) -> StreamingHttpResponse:
 
                 start_time = time.monotonic()
                 for index in range(CONWAY_GRID_SIZE**2):
-                    cell = CONWAY_GRID[index]["self"]
-                    neighbours = CONWAY_GRID[index]["neighbours"]
+                    cell_lookup = CONWAY_GRID[index]
+                    cell = cell_lookup["self"]
+                    neighbours = cell_lookup["neighbours"]
 
                     new_cell_value, new_cell_class = process_cell(cell, neighbours)
                     cell.value = new_cell_value
