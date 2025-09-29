@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import time
 import random
 import typing as t
 import uuid
@@ -572,3 +573,182 @@ def service_worker_view(request: HttpRequest) -> HttpResponse:
 
 def service_worker_js_view(request: HttpRequest) -> HttpResponse:
     return render(request, "core/sw.js", {}, content_type="application/javascript")
+
+
+CONWAY_GRID = []
+CONWAY_GRID_SIZE = 100
+
+
+def is_top_row(index: int, size: int) -> bool:
+    return index < size
+
+
+def is_bottom_row(index: int, size: int) -> bool:
+    length = size**2
+    return (length - size) <= index < length
+
+
+def is_left_row(index: int, size: int) -> bool:
+    return index % size == 0
+
+
+def is_right_row(index: int, size: int) -> bool:
+    return (index + 1) % size == 0
+
+
+def get_neighbour_indexes(index: int, size: int) -> list[int]:
+    is_top = is_top_row(index, size)
+    is_bottom = is_bottom_row(index, size)
+    is_left = is_left_row(index, size)
+    is_right = is_right_row(index, size)
+
+    available_neigbors = ["T", "TR", "R", "BR", "B", "BL", "L", "TL"]
+    available_neigbors_top = ["L", "R", "B", "BL", "BR"]
+    available_neigbors_bottom = ["L", "R", "T", "TL", "TR"]
+    available_neigbors_left = ["T", "R", "B", "TR", "BR"]
+    available_neigbors_right = ["T", "L", "B", "TL", "BL"]
+
+    neigbors = set(available_neigbors)
+
+    if is_top:
+        neigbors = neigbors & set(available_neigbors_top)
+    if is_left:
+        neigbors = neigbors & set(available_neigbors_left)
+    if is_right:
+        neigbors = neigbors & set(available_neigbors_right)
+    if is_bottom:
+        neigbors = neigbors & set(available_neigbors_bottom)
+
+    neighbour_indexes = []
+    for neigbor in neigbors:
+        if neigbor == "T":
+            neighbour_indexes.append(index - size)
+        elif neigbor == "TR":
+            neighbour_indexes.append(index - size + 1)
+        elif neigbor == "R":
+            neighbour_indexes.append(index + 1)
+        elif neigbor == "BR":
+            neighbour_indexes.append(index + size + 1)
+        elif neigbor == "B":
+            neighbour_indexes.append(index + size)
+        elif neigbor == "BL":
+            neighbour_indexes.append(index + size - 1)
+        elif neigbor == "L":
+            neighbour_indexes.append(index - 1)
+        elif neigbor == "TL":
+            neighbour_indexes.append(index - size - 1)
+
+    # print("*" * 10)
+    # print("index", index)
+    # print("is_top", is_top)
+    # print("is_bottom", is_bottom)
+    # print("is_left", is_left)
+    # print("is_right", is_right)
+    # print(neigbors)
+    # print(neighbour_indexes)
+    # print("*" * 10)
+
+    return neighbour_indexes
+
+
+def process_cell(cell_value: int, neighbour_indexes: list[int]) -> tuple[int, str]:
+    """
+    Any live cell with fewer than two live neighbours dies, as if by underpopulation.
+    Any live cell with two or three live neighbours lives on to the next generation.
+    Any live cell with more than three live neighbours dies, as if by overpopulation.
+    Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
+    """
+    # neighbour_live_count = 0
+    # for neighbour_index in neighbour_indexes:
+    #     neighbour_value = CONWAY_GRID[neighbour_index]
+    #     neighbour_live_count += neighbour_value
+    neighbour_live_count = sum(
+        CONWAY_GRID[neighbour_index] for neighbour_index in neighbour_indexes
+    )
+
+    is_alive = cell_value == 1
+
+    if is_alive and neighbour_live_count < 2:
+        return 0, ""
+    elif is_alive and neighbour_live_count in (2, 3):
+        return 1, "alive"
+    elif is_alive and neighbour_live_count > 3:
+        return 0, ""
+    elif not is_alive and neighbour_live_count == 3:
+        return 1, "alive"
+    else:
+        return 0, ""
+
+
+async def conway_see_view(request: HttpRequest) -> StreamingHttpResponse:
+    async def event_stream() -> t.AsyncIterator[str]:
+        global CONWAY_GRID
+
+        yield "event: connected\n"
+        yield "data:\n\n"
+
+        tick_counter = 0
+
+        try:
+            while True:
+                tick_counter += 1
+                changes_for_publishing = []
+
+                start_time = time.monotonic()
+                for index in range(CONWAY_GRID_SIZE**2):
+                    cell_value = CONWAY_GRID[index]
+                    neighbour_indexes = get_neighbour_indexes(index, CONWAY_GRID_SIZE)
+                    new_cell_value, new_cell_class = process_cell(
+                        cell_value, neighbour_indexes
+                    )
+                    CONWAY_GRID[index] = new_cell_value
+                    changes_for_publishing.append((index, new_cell_class))
+
+                if tick_counter % 5 == 0:
+                    total_seconds = time.monotonic() - start_time
+                    total_milliseconds = total_seconds * 1000
+                    print("total_milliseconds", f"{total_milliseconds:0.4f}")
+
+                if changes_for_publishing:
+                    yield "event: datastar-patch-elements\n"
+                    yield "data: mode replace\n"
+
+                    elements = ""
+                    for index, new_cell_class in changes_for_publishing:
+                        elements += (
+                            f'<div id="{index}" class="cell {new_cell_class}"></div>'
+                        )
+                    yield f"data: elements {elements}\n\n"
+
+                await asyncio.sleep(1 / 4)
+        except Exception as ex:
+            yield "event: disconnected\n"
+            yield "data:\n\n"
+            raise ex
+
+    response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
+    response["Cache-Control"] = "no-cache"
+    response["Connection"] = "keep-alive"
+    return response
+
+
+class ConwayView(View):
+    template_name: str = ""
+
+    def get(self, request: HttpRequest) -> HttpResponse:
+        global CONWAY_GRID
+
+        CONWAY_GRID = []
+        for _ in range(CONWAY_GRID_SIZE**2):
+            if random.random() < 0.1:
+                state = 1
+            else:
+                state = 0
+
+            CONWAY_GRID.append(state)
+
+        return render(
+            request,
+            "core/conway.html",
+            {"grid": CONWAY_GRID, "size": CONWAY_GRID_SIZE},
+        )

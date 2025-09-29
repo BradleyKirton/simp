@@ -45,4 +45,6 @@ urlpatterns = [
     ),
     path("sw/", core_views.service_worker_view, name="sw"),
     path("sw.js", core_views.service_worker_js_view, name="swjs"),
+    path("conway/", core_views.ConwayView.as_view(), name="conway"),
+    path("conway/sse/", core_views.conway_see_view, name="conwaysse"),
 ]
