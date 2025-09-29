@@ -1,5 +1,7 @@
 import asyncio
+import dataclasses
 import datetime
+from operator import eq
 import time
 import random
 import typing as t
@@ -575,7 +577,7 @@ def service_worker_js_view(request: HttpRequest) -> HttpResponse:
     return render(request, "core/sw.js", {}, content_type="application/javascript")
 
 
-CONWAY_GRID = []
+CONWAY_GRID = {}
 CONWAY_GRID_SIZE = 100
 
 
@@ -651,22 +653,22 @@ def get_neighbour_indexes(index: int, size: int) -> list[int]:
     return neighbour_indexes
 
 
-def process_cell(cell_value: int, neighbour_indexes: list[int]) -> tuple[int, str]:
+@dataclasses.dataclass(slots=True, eq=False, repr=False)
+class ConwayCell:
+    index: int
+    value: int
+    class_value: str
+
+
+def process_cell(cell: ConwayCell, neighbours: list[ConwayCell]) -> tuple[int, str]:
     """
     Any live cell with fewer than two live neighbours dies, as if by underpopulation.
     Any live cell with two or three live neighbours lives on to the next generation.
     Any live cell with more than three live neighbours dies, as if by overpopulation.
     Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
     """
-    # neighbour_live_count = 0
-    # for neighbour_index in neighbour_indexes:
-    #     neighbour_value = CONWAY_GRID[neighbour_index]
-    #     neighbour_live_count += neighbour_value
-    neighbour_live_count = sum(
-        CONWAY_GRID[neighbour_index] for neighbour_index in neighbour_indexes
-    )
-
-    is_alive = cell_value == 1
+    neighbour_live_count = sum(neighbour.value for neighbour in neighbours)
+    is_alive = cell.value == 1
 
     if is_alive and neighbour_live_count < 2:
         return 0, ""
@@ -696,13 +698,14 @@ async def conway_see_view(request: HttpRequest) -> StreamingHttpResponse:
 
                 start_time = time.monotonic()
                 for index in range(CONWAY_GRID_SIZE**2):
-                    cell_value = CONWAY_GRID[index]
-                    neighbour_indexes = get_neighbour_indexes(index, CONWAY_GRID_SIZE)
-                    new_cell_value, new_cell_class = process_cell(
-                        cell_value, neighbour_indexes
-                    )
-                    CONWAY_GRID[index] = new_cell_value
-                    changes_for_publishing.append((index, new_cell_class))
+                    cell = CONWAY_GRID[index]["self"]
+                    neighbours = CONWAY_GRID[index]["neighbours"]
+
+                    new_cell_value, new_cell_class = process_cell(cell, neighbours)
+                    cell.value = new_cell_value
+                    cell.class_value = new_cell_class
+
+                    changes_for_publishing.append(cell)
 
                 if tick_counter % 5 == 0:
                     total_seconds = time.monotonic() - start_time
@@ -711,16 +714,16 @@ async def conway_see_view(request: HttpRequest) -> StreamingHttpResponse:
 
                 if changes_for_publishing:
                     yield "event: datastar-patch-elements\n"
-                    yield "data: mode replace\n"
+                    yield "data: mode outer\n"
 
-                    elements = ""
-                    for index, new_cell_class in changes_for_publishing:
-                        elements += (
-                            f'<div id="{index}" class="cell {new_cell_class}"></div>'
-                        )
-                    yield f"data: elements {elements}\n\n"
+                    for cell in changes_for_publishing:
+                        index = cell.index
+                        class_value = cell.class_value
+                        element = f'<div id="{index}" class="cell {class_value}"></div>'
+                        yield f"data: elements {element}\n"
+                    yield "\n"
 
-                await asyncio.sleep(1 / 4)
+                await asyncio.sleep(1 / 5)
         except Exception as ex:
             yield "event: disconnected\n"
             yield "data:\n\n"
@@ -738,17 +741,35 @@ class ConwayView(View):
     def get(self, request: HttpRequest) -> HttpResponse:
         global CONWAY_GRID
 
-        CONWAY_GRID = []
-        for _ in range(CONWAY_GRID_SIZE**2):
+        CONWAY_GRID = {}
+        cells = []
+        length = CONWAY_GRID_SIZE**2
+        for index in range(length):
             if random.random() < 0.1:
-                state = 1
+                value = 1
+                class_value = "alive"
             else:
-                state = 0
+                value = 0
+                class_value = ""
 
-            CONWAY_GRID.append(state)
+            cell = ConwayCell(
+                index=index,
+                value=value,
+                class_value=class_value,
+            )
+            cells.append(cell)
+            CONWAY_GRID[index] = {"self": cell}
+
+        for index in range(length):
+            neighbour_indexes = get_neighbour_indexes(index, CONWAY_GRID_SIZE)
+            neighbours = [
+                CONWAY_GRID[neighbour_index]["self"]
+                for neighbour_index in neighbour_indexes
+            ]
+            CONWAY_GRID[index]["neighbours"] = neighbours
 
         return render(
             request,
             "core/conway.html",
-            {"grid": CONWAY_GRID, "size": CONWAY_GRID_SIZE},
+            {"cells": cells, "size": CONWAY_GRID_SIZE},
         )

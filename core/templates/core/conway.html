@@ -42,10 +42,10 @@
 <body>
 	{% partialdef conway_grid %}
 	<main data-on-load="@get('{% url 'conwaysse' %}')">
-			{% for cell in grid %}
+			{% for cell in cells %}
 				<div
-					id="{{ forloop.counter }}"
-					class="cell{% if cell == 1 %} alive{% endif %}">
+					id="{{ cell.index }}"
+					class="cell {{ cell.class_value }}">
 				</div>
 			{% endfor %}
 	</main>
