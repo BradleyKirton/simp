@@ -56,10 +56,9 @@
 		</pre>
 
 		{% partialdef get_partial %}
-		<div id="get_partial">Hello World from the server.</div>
+		<div id="get_partial">{{ message }}</div>
 		{% endpartialdef %}
-
-		<div id="get_partial">...</div>
+		{% partial get_partial %}
 		<div>
 			<button data-on-click="@get('{% url 'datastar' %}?a=get_partial')">Fetch</button>
 		</div>

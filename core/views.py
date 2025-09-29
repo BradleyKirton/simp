@@ -522,8 +522,8 @@ async def datastar_sse_view(request: HttpRequest) -> StreamingHttpResponse:
             colour = random.choice(["blue", "red", "green"])
 
             yield "event: datastar-patch-elements\n"
-            yield "data: mode outer\n"
-            yield "data: useViewTransition true\n"
+            yield "data: mode replace\n"
+            yield "data: useViewTransition false\n"
             yield f'data: elements <div id="{div_id}" style="background: {colour}; width: 100px; height: 10px;"></div>\n\n'
             await asyncio.sleep(1.0 / 4.0)
 
@@ -537,7 +537,18 @@ def datastar_view(request: HttpRequest) -> HttpResponse:
     action = request.GET.get("a", "")
 
     if action == "get_partial":
-        return render(request, "core/datastar.html#get_partial", {})
+        message = random.choice(
+            [
+                "henlo world",
+                "henlo mundo",
+                "henlo monde",
+                "хенло мир",
+                "henlo wereld",
+                "הנלו עולם",
+                "henlo dünya",
+            ]
+        )
+        return render(request, "core/datastar.html#get_partial", {"message": message})
 
     return render(request, "core/datastar.html", {})
 

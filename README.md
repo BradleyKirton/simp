@@ -48,3 +48,9 @@ GRANT ALL PRIVILEGES ON simp TO simp;
 ## Issues
 
 [https://github.com/nginx/unit/issues/1561](https://github.com/nginx/unit/issues/1561)
+
+## Notification Keys
+
+```console
+openssl ecparam -name prime256v1 -outform der -genkey -noout
+```

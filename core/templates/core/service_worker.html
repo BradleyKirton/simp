@@ -10,6 +10,60 @@
 <body>
 	<h1 id="header">Service Workers</h1>
 	<script>
+		function urlBase64ToUint8Array(base64String) {
+			const padding = '='.repeat((4 - base64String.length % 4) % 4);
+			const base64 = (base64String + padding)
+				.replace(/\-/g, '+')
+				.replace(/_/g, '/');
+
+			const rawData = atob(base64);
+			const outputArray = new Uint8Array(rawData.length);
+
+			for (let i = 0; i < rawData.length; ++i) {
+				outputArray[i] = rawData.charCodeAt(i);
+			}
+			return outputArray;
+		}
+		function pemToBase64(pem) {
+			return pem
+				.replace(/-----BEGIN PUBLIC KEY-----/, '')
+				.replace(/-----END PUBLIC KEY-----/, '')
+				.replace(/\s/g, ''); // Remove all whitespace including newlines
+		}
+		// Method 1: Using TextEncoder (recommended for UTF-8 text)
+		function stringToUint8Array(str) {
+			const encoder = new TextEncoder();
+			return encoder.encode(str);
+		}
+
+		// Method 2: Using charCodeAt (for ASCII/binary data)
+		function stringToUint8ArrayCharCode(str) {
+			const uint8Array = new Uint8Array(str.length);
+			for (let i = 0; i < str.length; i++) {
+				uint8Array[i] = str.charCodeAt(i);
+			}
+			return uint8Array;
+		}
+
+		// Method 3: From Base64 string
+		function base64ToUint8Array(base64) {
+			const binary = atob(base64);
+			const uint8Array = new Uint8Array(binary.length);
+			for (let i = 0; i < binary.length; i++) {
+				uint8Array[i] = binary.charCodeAt(i);
+			}
+			return uint8Array;
+		}
+
+		// Method 4: From Hex string
+		function hexToUint8Array(hex) {
+			const uint8Array = new Uint8Array(hex.length / 2);
+			for (let i = 0; i < hex.length; i += 2) {
+				uint8Array[i / 2] = parseInt(hex.substr(i, 2), 16);
+			}
+			return uint8Array;
+		}
+		var subscriptionManager;
 		const registerServiceWorker = async () => {
 			if ("serviceWorker" in navigator) {
 				try {
@@ -23,23 +77,32 @@
 					} else if (registration.active) {
 						console.log("Service worker active");
 					}
+					var applicationServerKey = hexToUint8Array(
+						"04e2f27a9ce161b7d9006515dd4885015c4b7e59b5fae1a2caf51e315f69fe46973cfca810c32c85927b34ca1aec6fa0fc385a6d00b5a37e9137f3b0def64efdc2"
+					);
+					const subscribeOptions = {
+						userVisibleOnly: true,
+						applicationServerKey: applicationServerKey,
+					}
+					subscriptionManager = await registration.pushManager.subscribe(subscribeOptions)
+
 				} catch (error) {
 					console.error(`Registration failed with ${error}`);
 				}
 				navigator.serviceWorker.addEventListener('message', function(event) {
-				    const data = event.data;
-				    console.log('Message from service worker:', data);
-				    // Handle the message as needed
+					const data = event.data;
+					console.log('Message from service worker:', data);
+					// Handle the message as needed
 				});
 			}
 		};
 		registerServiceWorker();
 
 		window.addEventListener("offline", (event) => {
-		  document.getElementById("header").style = "color: red;"
+			document.getElementById("header").style = "color: red;"
 		});
 		window.addEventListener("online", (event) => {
-		  document.getElementById("header").style = "color: black;"
+			document.getElementById("header").style = "color: black;"
 		});
 		if (navigator.onLine) {
 			document.getElementById("header").style = "color: black;"
@@ -49,65 +112,73 @@
 	</script>
 
 	<script>
-		navigator.setAppBadge(2);
+		if ("setAppBadge" in navigator) navigator.setAppBadge(2);
 
 		async function checkProperties() {
-		  const supportedProperties = await navigator.contacts.getProperties();
-		  if (supportedProperties.includes("name")) {
-		    console.log("name")
-		  }
-		  if (supportedProperties.includes("email")) {
-		    console.log("email")
-		  }
-		  if (supportedProperties.includes("tel")) {
-		    console.log("tel")
-		  }
-		  if (supportedProperties.includes("address")) {
-		    console.log("address")
-		  }
-		  if (supportedProperties.includes("icon")) {
-		    console.log("icon")
-		  }
+			const supportedProperties = await navigator.contacts.getProperties();
+			if (supportedProperties.includes("name")) {
+				console.log("name")
+			}
+			if (supportedProperties.includes("email")) {
+				console.log("email")
+			}
+			if (supportedProperties.includes("tel")) {
+				console.log("tel")
+			}
+			if (supportedProperties.includes("address")) {
+				console.log("address")
+			}
+			if (supportedProperties.includes("icon")) {
+				console.log("icon")
+			}
 		}
 
-		navigator.getBattery().then((battery) => {
-		  function updateAllBatteryInfo() {
-		    updateChargeInfo();
-		    updateLevelInfo();
-		    updateChargingInfo();
-		    updateDischargingInfo();
-		  }
-		  updateAllBatteryInfo();
+		if ("getBattery" in navigator) {
+			navigator.getBattery().then((battery) => {
+				function updateAllBatteryInfo() {
+					updateChargeInfo();
+					updateLevelInfo();
+					updateChargingInfo();
+					updateDischargingInfo();
+				}
+				updateAllBatteryInfo();
 
-		  battery.addEventListener("chargingchange", () => {
-		    updateChargeInfo();
-		  });
-		  function updateChargeInfo() {
-		    console.log(`Battery charging? ${battery.charging ? "Yes" : "No"}`);
-		  }
+				battery.addEventListener("chargingchange", () => {
+					updateChargeInfo();
+				});
+				function updateChargeInfo() {
+					console.log(`Battery charging? ${battery.charging ? "Yes" : "No"}`);
+				}
 
-		  battery.addEventListener("levelchange", () => {
-		    updateLevelInfo();
-		  });
-		  function updateLevelInfo() {
-		    console.log(`Battery level: ${battery.level * 100}%`);
-		  }
+				battery.addEventListener("levelchange", () => {
+					updateLevelInfo();
+				});
+				function updateLevelInfo() {
+					console.log(`Battery level: ${battery.level * 100}%`);
+				}
 
-		  battery.addEventListener("chargingtimechange", () => {
-		    updateChargingInfo();
-		  });
-		  function updateChargingInfo() {
-		    console.log(`Battery charging time: ${battery.chargingTime} seconds`);
-		  }
+				battery.addEventListener("chargingtimechange", () => {
+					updateChargingInfo();
+				});
+				function updateChargingInfo() {
+					console.log(`Battery charging time: ${battery.chargingTime} seconds`);
+				}
 
-		  battery.addEventListener("dischargingtimechange", () => {
-		    updateDischargingInfo();
-		  });
-		  function updateDischargingInfo() {
-		    console.log(`Battery discharging time: ${battery.dischargingTime} seconds`);
-		  }
-		});
+				battery.addEventListener("dischargingtimechange", () => {
+					updateDischargingInfo();
+				});
+				function updateDischargingInfo() {
+					console.log(`Battery discharging time: ${battery.dischargingTime} seconds`);
+				}
+			});
+		}
+	</script>
 
+	<script>
+		if (window.Notification && Notification.permission !== "denied") {
+			new Notification("Simp", { body: "Notification from browser." });
+			Notification.requestPermission().then(console.log);
+		}
 	</script>
 </body>
 
