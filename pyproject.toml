@@ -19,8 +19,8 @@ dependencies = [
     "valkey-glide>=2.0.1",
 ]
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "daphne>=4.2.1",
     "ipython>=9.4.0",
     "jupyterlab>=4.4.5",
