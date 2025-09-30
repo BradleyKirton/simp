@@ -12,8 +12,8 @@
 	<h1>Datastar</h1>	
 	<div>
 		<h2>Data binding</h2>
-		<input data-bind="text">
-		<p data-text="$text"></p>
+		<input data-bind="_text">
+		<p data-text="$_text"></p>
 	</div>
 	<div>
 		<h2>Computed Props</h2>
@@ -38,10 +38,10 @@
 			}
 		</script>
 		<p><strong>No vowels</strong></p>
-		<p data-computed-textnovowel="replaceVowels($text)" data-text="$textnovowel"></p>
+		<p data-computed-_textnovowel="replaceVowels($_text)" data-text="$_textnovowel"></p>
 
 		<p><strong>Caesar Cipher</strong></p>
-		<p data-computed-textcaesarthree="caesarCiperThree($text)" data-text="$textcaesarthree"></p>
+		<p data-computed-_textcaesarthree="caesarCiperThree($_text)" data-text="$_textcaesarthree"></p>
 	</div>
 
 	<div>

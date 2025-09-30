@@ -1,8 +1,8 @@
 import asyncio
 import dataclasses
 import datetime
-import time
 import random
+import time
 import typing as t
 import uuid
 
@@ -18,7 +18,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import lorem_ipsum
 from django.views import View
 from glide import GlideClient, GlideClientConfiguration, NodeAddress
-
+import json
 from core import ipc
 from db import aconn
 from db import models as db_models
@@ -701,25 +701,26 @@ async def conway_see_view(request: HttpRequest) -> StreamingHttpResponse:
                     cell = cell_lookup["self"]
                     neighbours = cell_lookup["neighbours"]
 
-                    new_cell_value, new_cell_class = process_cell(cell, neighbours)
-                    cell.value = new_cell_value
-                    cell.class_value = new_cell_class
+                    new_value, new_class_value = process_cell(cell, neighbours)
+                    changes_for_publishing.append((index, new_value, new_class_value))
 
-                    changes_for_publishing.append(cell)
-
-                if tick_counter % 5 == 0:
-                    total_seconds = time.monotonic() - start_time
-                    total_milliseconds = total_seconds * 1000
-                    print("total_milliseconds", f"{total_milliseconds:0.4f}")
+                total_seconds = time.monotonic() - start_time
+                total_milliseconds = total_seconds * 1000
+                print("total_milliseconds", f"{total_milliseconds:0.4f}")
 
                 if changes_for_publishing:
                     yield "event: datastar-patch-elements\n"
                     yield "data: mode outer\n"
 
-                    for cell in changes_for_publishing:
-                        index = cell.index
-                        class_value = cell.class_value
-                        element = f'<div id="{index}" class="cell {class_value}"></div>'
+                    for index, new_value, new_class_value in changes_for_publishing:
+                        cell_lookup = CONWAY_GRID[index]
+                        cell = cell_lookup["self"]
+                        cell.value = new_value
+                        cell.class_value = new_class_value
+
+                        element = (
+                            f'<div id="{index}" class="cell {new_class_value}"></div>'
+                        )
                         yield f"data: elements {element}\n"
                     yield "\n"
 
@@ -745,7 +746,7 @@ class ConwayView(View):
         cells = []
         length = CONWAY_GRID_SIZE**2
         for index in range(length):
-            if random.random() < 0.1:
+            if random.random() < 0.2:
                 value = 1
                 class_value = "alive"
             else:

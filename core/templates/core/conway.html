@@ -41,7 +41,8 @@
 </head>
 <body>
 	{% partialdef conway_grid %}
-	<main data-on-load="@get('{% url 'conwaysse' %}')">
+	<main
+		data-on-load="@get('{% url 'conwaysse' %}')">
 			{% for cell in cells %}
 				<div
 					id="{{ cell.index }}"
