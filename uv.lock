@@ -1652,6 +1652,12 @@ wheels = [
 ]
 
 [[package]]
+name = "nats-py"
+version = "2.11.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/65/be/757c8af63596453daaa42cc21be51aa42fc6b23cc9d4347784f99c8357b5/nats_py-2.11.0.tar.gz", hash = "sha256:fb1097db8b520bb4c8f5ad51340ca54d9fa54dbfc4ecc81c3625ef80994b6100", size = 114186, upload-time = "2025-07-22T08:41:08.589Z" }
+
+[[package]]
 name = "nbclient"
 version = "0.10.2"
 source = { registry = "https://pypi.org/simple" }
@@ -2771,6 +2777,7 @@ dependencies = [
     { name = "granian", extra = ["reload", "uvloop"] },
     { name = "markitdown", extra = ["all"] },
     { name = "meilisearch" },
+    { name = "nats-py" },
     { name = "ollama" },
     { name = "psycopg", extra = ["binary", "pool"] },
     { name = "python-socketio", extra = ["asyncio-client"] },
@@ -2798,6 +2805,7 @@ requires-dist = [
     { name = "granian", extras = ["reload", "uvloop"], specifier = ">=2.5.0" },
     { name = "markitdown", extras = ["all"], specifier = ">=0.1.2" },
     { name = "meilisearch", specifier = ">=0.36.0" },
+    { name = "nats-py", specifier = ">=2.11.0" },
     { name = "ollama", specifier = ">=0.5.1" },
     { name = "psycopg", extras = ["binary", "pool"], specifier = ">=3.2.9" },
     { name = "python-socketio", extras = ["asyncio-client"], specifier = ">=5.13.0" },

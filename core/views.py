@@ -6,6 +6,7 @@ import time
 import typing as t
 import uuid
 
+import nats
 import ollama
 import psycopg
 import psycopg_pool
@@ -18,7 +19,8 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import lorem_ipsum
 from django.views import View
 from glide import GlideClient, GlideClientConfiguration, NodeAddress
-import json
+from nats.js.errors import BucketNotFoundError
+
 from core import ipc
 from db import aconn
 from db import models as db_models
@@ -774,3 +776,26 @@ class ConwayView(View):
             "core/conway.html",
             {"cells": cells, "size": CONWAY_GRID_SIZE},
         )
+
+
+async def bucket_view(request: HttpRequest) -> HttpResponse:
+    nc = await nats.connect(servers=["nats://localhost:4222"])
+    js = nc.jetstream()
+    try:
+        object_store = await js.object_store("stuff")
+    except BucketNotFoundError:
+        object_store = await js.create_object_store("stuff")
+
+    bucket_status = await object_store.status()
+
+    data = bytes(10000000)
+    name = uuid.uuid4()
+    info = await object_store.put(f"{name}", data)
+
+    entries = await object_store.list()
+
+    return render(
+        request,
+        "core/bucket.html",
+        {"bucket_status": bucket_status, "info": info, "entries": entries},
+    )

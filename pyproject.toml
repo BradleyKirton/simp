@@ -17,6 +17,7 @@ dependencies = [
     "pyzmq>=27.0.0",
     "valkey>=6.1.0",
     "valkey-glide>=2.0.1",
+    "nats-py>=2.11.0",
 ]
 
 [dependency-groups]

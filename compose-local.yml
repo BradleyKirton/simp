@@ -11,6 +11,14 @@ services:
       - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
       - ./.pgdata:/var/lib/postgresql/data
 
+  nats:
+    image: docker.io/nats:2.11.10-scratch
+    container_name: nats
+    ports:
+        - "4222:4222"
+        - "8222:8222"
+    command: ["-js", "--http_port=8222"]
+
   meili:
     image: docker.io/getmeili/meilisearch:v1.15
     ports: 7700:7700
