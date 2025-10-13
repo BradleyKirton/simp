@@ -2,7 +2,6 @@ from django.urls import path
 from core import views as core_views
 
 
-
 urlpatterns = [
     path(r"", core_views.IndexView.as_view()),
     path(r"chat/", core_views.ChatView.as_view(), name="chat"),
@@ -48,4 +47,11 @@ urlpatterns = [
     path("conway/", core_views.ConwayView.as_view(), name="conway"),
     path("conway/sse/", core_views.conway_see_view, name="conwaysse"),
     path("bucket/", core_views.bucket_view, name="bucket"),
+    path("nats_pubsub/", core_views.nats_pubsub_view, name="nats_pubsub"),
+    path("nats_pubsub/pub/", core_views.nats_pub_view, name="nats_pub"),
+    path(
+        "nats_pubsub/sse/",
+        core_views.NatsPubSubSSEView.as_view(),
+        name="nats_pubsub_sse",
+    ),
 ]

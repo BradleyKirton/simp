@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Nats IO</title>
+</head>
+<body>
+	<div id="content">No requests received...</div>
+	<script>
+		document.addEventListener("DOMContentLoaded", () => {
+			let stream = new EventSource("{% url 'nats_pubsub_sse' %}");
+			stream.addEventListener("message", (e) => {
+				window.content.innerText = e.data;
+			})
+			setInterval(() => {
+				fetch("{% url 'nats_pub' %}")
+			}, 1000)
+		})
+	</script>
+</body>
+</html>

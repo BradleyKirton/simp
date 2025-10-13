@@ -781,6 +781,7 @@ class ConwayView(View):
 async def bucket_view(request: HttpRequest) -> HttpResponse:
     nc = await nats.connect(servers=["nats://localhost:4222"])
     js = nc.jetstream()
+
     try:
         object_store = await js.object_store("stuff")
     except BucketNotFoundError:
@@ -799,3 +800,51 @@ async def bucket_view(request: HttpRequest) -> HttpResponse:
         "core/bucket.html",
         {"bucket_status": bucket_status, "info": info, "entries": entries},
     )
+
+
+async def nats_pubsub_view(request: HttpRequest) -> HttpResponse:
+    return render(request, "core/nats_pubsub.html")
+
+
+NATS_CONNECTIONS = 0
+
+
+async def nats_pub_view(request: HttpRequest) -> HttpResponse:
+    global NATS_CONNECTIONS
+    NATS_CONNECTIONS += 1
+    nc = await nats.connect(servers=["nats://localhost:4222"])
+    await nc.publish("nats_pubsub_view", f"{NATS_CONNECTIONS}".encode())
+    return render(request, "core/nats_pubsub.html")
+
+
+class NatsPubSubSSEView(View):
+    async def stream_events(self, sub: t.Any) -> t.AsyncGenerator:
+        yield "event:connected\n"
+        yield "data:\n\n"
+
+        should_subscribe = True
+
+        while should_subscribe:
+            try:
+                async for message in sub.messages:
+                    if message == "break":
+                        should_subscribe = False
+                        break
+
+                    yield "event:message\n"
+                    yield f"data:{message}\n\n"
+            except TimeoutError:
+                yield "event:ping\n"
+                yield "data:ping\n\n"
+
+        yield "event:disconnected\n"
+        yield "data:\n\n"
+
+    async def get(self, request: HttpRequest) -> StreamingHttpResponse:
+        nc = await nats.connect(servers=["nats://localhost:4222"])
+        sub = await nc.subscribe("nats_pubsub_view")
+        return StreamingHttpResponse(
+            self.stream_events(sub),
+            content_type="text/event-stream",
+            headers={"Cache-Control": "no-cache"},
+        )
