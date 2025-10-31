@@ -45,9 +45,9 @@
             containerElement.appendChild(span);
             containerElement.appendChild(space);
         })
-        evtSource.addEventListener("end", (e) => {
-            evtSource.close();
-        })
+        // evtSource.addEventListener("end", (e) => {
+        //     evtSource.close();
+        // })
         evtSource.addEventListener("error", (e) => {
             console.error(e);
         });

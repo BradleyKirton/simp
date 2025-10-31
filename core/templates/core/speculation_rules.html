@@ -33,14 +33,15 @@
 <body>
 	<script type="speculationrules">
 		{
-			"prerender": [
+			"prefetch": [
 		      {
+  		        "source": "list",
 		        "urls": [
 		        	"{% url 'speculation' %}",
 		        	"{% url 'speculation_a' %}",
 		        	"{% url 'speculation_b' %}"
 		        ],
-		        "eagerness": "immediate"
+		        "eagerness": "moderate"
 		      }
 			]
 		}

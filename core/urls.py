@@ -13,10 +13,10 @@ urlpatterns = [
     path(r"sio/", core_views.SioView.as_view(), name="sio"),
     path(r"zmq/sse/", core_views.ZmqIpcStreamView.as_view(), name="zmqsse"),
     path(r"zmq/", core_views.ZmqIpcView.as_view(), name="zmq"),
-    path(r"valkey/sse/", core_views.ValKeyIpcStreamView.as_view(), name="valkeysse"),
-    path(r"valkey/", core_views.ValKeyIpcView.as_view(), name="valkey"),
-    path(r"test/", core_views.TaskCountView.as_view(), name="task_count"),
-    path(r"test/sse/", core_views.TaskCountSSEView.as_view(), name="task_count_sse"),
+    # path(r"valkey/sse/", core_views.ValKeyIpcStreamView.as_view(), name="valkeysse"),
+    # path(r"valkey/", core_views.ValKeyIpcView.as_view(), name="valkey"),
+    # path(r"test/", core_views.TaskCountView.as_view(), name="task_count"),
+    # path(r"test/sse/", core_views.TaskCountSSEView.as_view(), name="task_count_sse"),
     path(r"valkey_2/sse/", core_views.valkey_stream, name="valkeysse_2"),
     path(r"valkey_2/", core_views.valkey_view, name="valkey_2"),
     path(r"datastar/", core_views.datastar_view, name="datastar"),
@@ -53,5 +53,36 @@ urlpatterns = [
         "nats_pubsub/sse/",
         core_views.NatsPubSubSSEView.as_view(),
         name="nats_pubsub_sse",
+    ),
+    # AI things
+    path(
+        "customers/",
+        core_views.CustomerListView.as_view(),
+        name="customer_list",
+    ),
+    path(
+        "customers/create/",
+        core_views.CustomerCreateView.as_view(),
+        name="customer_create",
+    ),
+    path(
+        "customers/<int:pk>/",
+        core_views.CustomerDetailView.as_view(),
+        name="customer_detail",
+    ),
+    path(
+        "customers/<int:pk>/update/",
+        core_views.CustomerUpdateView.as_view(),
+        name="customer_update",
+    ),
+    path(
+        "customers/<int:pk>/delete/",
+        core_views.CustomerDeleteView.as_view(),
+        name="customer_delete",
+    ),
+    path(
+        "customers/ai/sse/",
+        core_views.AIStreamView.as_view(),
+        name="customer_ai_sse",
     ),
 ]

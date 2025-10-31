@@ -1,0 +1,166 @@
+{% extends 'core/customer_base.html' %}
+
+{% block content %}
+<script type="speculationrules">
+	{
+		"prefetch": [
+	      {
+	        "source": "list",
+	        "urls": [
+		    {% for customer in object_list %}
+		        "{{ customer.get_absolute_url }}"{% if not forloop.last %},{% endif %}
+		    {% endfor customer in object_list %}
+	        ],
+	        "eagerness": "moderate"
+	      }
+		]
+	}
+</script>
+<ul>
+	{% for customer in object_list %}
+	<li>
+		<a class="text-blue-800 hover:underline" href="{{ customer.get_absolute_url }}">
+			{{ customer.id }}:{{ customer.name }}
+		</a>
+	</li>
+	{% endfor customer in object_list %}
+</ul>
+
+<br>
+<style>
+	@keyframes vibrate {
+		0% {
+			transform: translateY(2px) translateX(2px);
+		}
+
+		20% {
+			transform: translateY(0px) translateX(0px);
+		}
+
+		10% {
+			transform: translateY(-2px) translateX(-2px);
+		}
+
+		30% {
+			transform: translateY(2px) translateX(2px);
+		}
+
+		40% {
+			transform: translateY(0px) translateX(0px);
+		}
+
+		50% {
+			transform: translateY(-2px) translateX(-2px);
+		}
+
+		60% {
+			transform: translateY(2px) translateX(2px);
+		}
+
+		70% {
+			transform: translateY(0px) translateX(0px);
+		}
+
+		80% {
+			transform: translateY(-2px) translateX(-2px);
+		}
+
+		90% {
+			transform: translateY(0px) translateX(-2px);
+		}
+
+		100% {
+			transform: translateY(2px) translateX(-2px);
+		}
+	}
+
+	.busy {
+		animation: vibrate 0.2s infinite;
+	}
+</style>
+<div class="flex flex-col border-1 p-3 gap-2">
+	<p>Ask Clanker</p>
+	<textarea id="q" class="border-1" rows="6"></textarea>
+	<pre id="stream" class="whitespace-normal"></pre>
+	<button id="askClanker" class="border-1 p-2 hover:bg-gray-200 hover:pointer">Ask</button>
+</div>
+<script>
+	function getCookie(name) {
+		const cookieString = document.cookie;
+		const cookies = cookieString.split(';');
+		const prefix = name + '=';
+
+		for (let cookie of cookies) {
+			cookie = cookie.trim();
+			if (cookie.startsWith(prefix)) {
+				return decodeURIComponent(cookie.substring(prefix.length));
+			}
+		}
+		return null;
+	}
+
+	var audio = new Audio('https://upload.wikimedia.org/wikipedia/commons/e/ed/Jupey_purring.wav');
+
+	askClanker.addEventListener("click", () => {
+		if (!window.q.value) return;
+		window.stream.innerText = ""
+		window.askClanker.classList.add("busy", "bg-gray-200");
+		window.askClanker.classList.remove("hover:bg-gray-200", "hover:pointer");
+		window.askClanker.disabled = true;
+		audio.play();
+
+		fetch(
+			"{% url 'customer_ai_sse' %}",
+			{
+				method: "POST",
+				credentials: "include",
+				body: JSON.stringify({ q: window.q.value }),
+				headers: {
+					"X-CSRFToken": getCookie("csrftoken"),
+					"Content-Type": "application/json",
+				}
+			}
+		).then(console.log).catch(console.error)
+	})
+	const evtSource = new EventSource("{% url 'customer_ai_sse' %}", { withCredentials: true });
+	const streamElement = document.getElementById("stream");
+
+	var thinking = false;
+	var containerElement = streamElement;
+	evtSource.addEventListener("llm", (e) => {
+		let span = document.createElement("span");
+
+		if (e.data == "<think>") {
+			thinking = true;
+			containerElement = document.createElement("div");
+			containerElement.style = 'border: 1px solid black; padding: 1px;';
+			streamElement.appendChild(containerElement);
+			span.innerText = "🤔";
+			containerElement.appendChild(span);
+		} else if (e.data == "</think>") {
+			thinking = false;
+			span.innerText = "🤔";
+			containerElement.appendChild(span);
+			containerElement = streamElement;
+		} else {
+			span.innerText = e.data;
+			containerElement.appendChild(span);
+		}
+	})
+	evtSource.addEventListener("anchor", (e) => {
+		let element = document.createElement("div");
+		element.innerHTML = e.data;
+		containerElement.appendChild(element);
+	})
+	evtSource.addEventListener("end", (e) => {
+		// evtSource.close();
+		audio.pause();
+		window.askClanker.classList.remove("busy", "bg-gray-200");
+		window.askClanker.classList.add("hover:bg-gray-200", "hover:pointer");
+		window.askClanker.disabled = false;
+	})
+	evtSource.addEventListener("error", (e) => {
+		console.error(e);
+	});
+</script>
+{% endblock content %}

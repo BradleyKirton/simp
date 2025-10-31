@@ -1,11 +1,14 @@
 import asyncio
 import dataclasses
 import datetime
+import json
 import random
+import textwrap
 import time
 import typing as t
 import uuid
 
+import asgiref.sync
 import nats
 import ollama
 import psycopg
@@ -16,9 +19,18 @@ from django.conf import settings
 from django.db import connection
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 from django.utils import lorem_ipsum
 from django.views import View
-from glide import GlideClient, GlideClientConfiguration, NodeAddress
+from django.views.generic import (
+    CreateView,
+    DeleteView,
+    DetailView,
+    UpdateView,
+    ListView,
+)
+
+# from glide import GlideClient, GlideClientConfiguration, NodeAddress
 from nats.js.errors import BucketNotFoundError
 
 from core import ipc
@@ -354,124 +366,124 @@ async def task_count_sse(request: HttpRequest) -> StreamingHttpResponse:
     return response
 
 
-class TaskCountSSEView(View):
-    async def event_stream(self, client: GlideClient) -> t.AsyncGenerator:
-        try:
-            yield "event: connected\n"
-            yield "data: connected\n\n"
+# class TaskCountSSEView(View):
+#     async def event_stream(self, client: GlideClient) -> t.AsyncGenerator:
+#         try:
+#             yield "event: connected\n"
+#             yield "data: connected\n\n"
 
-            while True:
-                guid = uuid.uuid4()
-                yield "event: message\n"
-                yield f"data: {guid.hex}\n\n"
+#             while True:
+#                 guid = uuid.uuid4()
+#                 yield "event: message\n"
+#                 yield f"data: {guid.hex}\n\n"
 
-                await asyncio.sleep(1)
-        finally:
-            await client.close()
+#                 await asyncio.sleep(1)
+#         finally:
+#             await client.close()
 
-    async def get(self, request: HttpRequest) -> StreamingHttpResponse:
-        addresses = [NodeAddress("localhost", 6379)]
-        config = GlideClientConfiguration(addresses, request_timeout=500)
-        client = await GlideClient.create(config)
-        stream = self.event_stream(client)
-        response = StreamingHttpResponse(stream, content_type="text/event-stream")
-        response["Connection"] = "keep-alive"
-        response["Cache-Control"] = "no-cache"
-        return response
-
-
-class TaskCountView(View):
-    async def get(self, request: HttpRequest) -> HttpResponse:
-        task_count = len(asyncio.all_tasks())
-        return render(
-            request,
-            "core/task_count.html",
-            {"task_count": task_count},
-        )
+#     async def get(self, request: HttpRequest) -> StreamingHttpResponse:
+#         addresses = [NodeAddress("localhost", 6379)]
+#         config = GlideClientConfiguration(addresses, request_timeout=500)
+#         client = await GlideClient.create(config)
+#         stream = self.event_stream(client)
+#         response = StreamingHttpResponse(stream, content_type="text/event-stream")
+#         response["Connection"] = "keep-alive"
+#         response["Cache-Control"] = "no-cache"
+#         return response
 
 
-class ValKeyIpcStreamView(View):
-    async def event_stream(self, client: GlideClient) -> t.AsyncGenerator:
-        try:
-            yield "event:connected\n"
-            yield "data:\n\n"
-
-            while True:
-                data = await client.get_pubsub_message()
-
-                if data.message == b"break":
-                    break
-
-                yield "event:current_time\n"
-                yield "data:current_time\n\n"
-
-            yield "event:disconnected\n"
-            yield "data:\n\n"
-
-        finally:
-            await client.close()
-
-    async def get(self, request: HttpRequest) -> StreamingHttpResponse:
-        _ = await request.session.aget("username")  # type: ignore
-        addresses = [NodeAddress("localhost", 6379)]
-        PubSubSubscriptions = GlideClientConfiguration.PubSubSubscriptions
-        PubSubChannelModes = GlideClientConfiguration.PubSubChannelModes
-        pubsub_subscriptions = PubSubSubscriptions(
-            {PubSubChannelModes.Exact: set(["ipc"])},
-            callback=None,
-            context=None,
-        )
-        config = GlideClientConfiguration(
-            addresses, request_timeout=500, pubsub_subscriptions=pubsub_subscriptions
-        )
-        client = await GlideClient.create(config)
-        response = StreamingHttpResponse(
-            self.event_stream(client),
-            content_type="text/event-stream",
-        )
-        response["Connection"] = "keep-alive"
-        response["Cache-Control"] = "no-cache"
-        return response
+# class TaskCountView(View):
+#     async def get(self, request: HttpRequest) -> HttpResponse:
+#         task_count = len(asyncio.all_tasks())
+#         return render(
+#             request,
+#             "core/task_count.html",
+#             {"task_count": task_count},
+#         )
 
 
-class ValKeyIpcView(View):
-    async def get(self, request: HttpRequest) -> HttpResponse:
-        if request.GET.get("p", "") == "current_time":
-            username = await request.session.aget("username")  # type: ignore
-            template_name = "core/valkey_pubsub.html#current_time"
-        elif request.GET.get("p", "") == "pong":
-            addresses = [NodeAddress("localhost", 6379)]
-            config = GlideClientConfiguration(addresses, request_timeout=500)
-            client = await GlideClient.create(config)
-            ponged_at = datetime.datetime.now(datetime.UTC)
-            username = await request.session.aget("username")  # type: ignore
-            await client.publish(ponged_at.isoformat(), f"username:{username}")
-            await client.close()
-            return HttpResponse(b"")
-        else:
-            username = uuid.uuid4()
-            template_name = "core/valkey_pubsub.html"
-            await request.session.aset("username", f"{username.hex}")  # type: ignore
+# class ValKeyIpcStreamView(View):
+#     async def event_stream(self, client: GlideClient) -> t.AsyncGenerator:
+#         try:
+#             yield "event:connected\n"
+#             yield "data:\n\n"
 
-        task_count = len(asyncio.all_tasks())
-        current_time = datetime.datetime.now()
-        return render(
-            request,
-            template_name,
-            {
-                "current_time": current_time.isoformat(),
-                "username": username,
-                "task_count": task_count,
-            },
-        )
+#             while True:
+#                 data = await client.get_pubsub_message()
 
-    async def post(self, request: HttpRequest) -> HttpResponse:
-        addresses = [NodeAddress("localhost", 6379)]
-        config = GlideClientConfiguration(addresses, request_timeout=500)
-        client = await GlideClient.create(config)
-        await client.publish("", "ipc")
-        await client.close()
-        return HttpResponse(b"")
+#                 if data.message == b"break":
+#                     break
+
+#                 yield "event:current_time\n"
+#                 yield "data:current_time\n\n"
+
+#             yield "event:disconnected\n"
+#             yield "data:\n\n"
+
+#         finally:
+#             await client.close()
+
+#     async def get(self, request: HttpRequest) -> StreamingHttpResponse:
+#         _ = await request.session.aget("username")  # type: ignore
+#         addresses = [NodeAddress("localhost", 6379)]
+#         PubSubSubscriptions = GlideClientConfiguration.PubSubSubscriptions
+#         PubSubChannelModes = GlideClientConfiguration.PubSubChannelModes
+#         pubsub_subscriptions = PubSubSubscriptions(
+#             {PubSubChannelModes.Exact: set(["ipc"])},
+#             callback=None,
+#             context=None,
+#         )
+#         config = GlideClientConfiguration(
+#             addresses, request_timeout=500, pubsub_subscriptions=pubsub_subscriptions
+#         )
+#         client = await GlideClient.create(config)
+#         response = StreamingHttpResponse(
+#             self.event_stream(client),
+#             content_type="text/event-stream",
+#         )
+#         response["Connection"] = "keep-alive"
+#         response["Cache-Control"] = "no-cache"
+#         return response
+
+
+# class ValKeyIpcView(View):
+#     async def get(self, request: HttpRequest) -> HttpResponse:
+#         if request.GET.get("p", "") == "current_time":
+#             username = await request.session.aget("username")  # type: ignore
+#             template_name = "core/valkey_pubsub.html#current_time"
+#         elif request.GET.get("p", "") == "pong":
+#             addresses = [NodeAddress("localhost", 6379)]
+#             config = GlideClientConfiguration(addresses, request_timeout=500)
+#             client = await GlideClient.create(config)
+#             ponged_at = datetime.datetime.now(datetime.UTC)
+#             username = await request.session.aget("username")  # type: ignore
+#             await client.publish(ponged_at.isoformat(), f"username:{username}")
+#             await client.close()
+#             return HttpResponse(b"")
+#         else:
+#             username = uuid.uuid4()
+#             template_name = "core/valkey_pubsub.html"
+#             await request.session.aset("username", f"{username.hex}")  # type: ignore
+
+#         task_count = len(asyncio.all_tasks())
+#         current_time = datetime.datetime.now()
+#         return render(
+#             request,
+#             template_name,
+#             {
+#                 "current_time": current_time.isoformat(),
+#                 "username": username,
+#                 "task_count": task_count,
+#             },
+#         )
+
+#     async def post(self, request: HttpRequest) -> HttpResponse:
+#         addresses = [NodeAddress("localhost", 6379)]
+#         config = GlideClientConfiguration(addresses, request_timeout=500)
+#         client = await GlideClient.create(config)
+#         await client.publish("", "ipc")
+#         await client.close()
+#         return HttpResponse(b"")
 
 
 valkey_pool = valkey.ConnectionPool(host="localhost", port=6379)
@@ -848,3 +860,307 @@ class NatsPubSubSSEView(View):
             content_type="text/event-stream",
             headers={"Cache-Control": "no-cache"},
         )
+
+
+class CustomerListView(ListView):
+    model = db_models.Customer
+    template_name = "core/customer_list.html"
+
+
+class CustomerDetailView(DetailView):
+    model = db_models.Customer
+    template_name = "core/customer.html"
+
+
+class CustomerDeleteView(DeleteView):
+    model = db_models.Customer
+    template_name = "core/customer_delete.html"
+
+    def get_success_url(self) -> str:
+        return reverse("customer_list")
+
+
+class CustomerCreateView(CreateView):
+    model = db_models.Customer
+    fields = ["name", "address"]
+    template_name = "core/customer_form.html"
+
+    def get_form_kwargs(self) -> dict[str, t.Any]:
+        kwargs = super().get_form_kwargs()
+        name = self.request.GET.get("name", "")
+        address = self.request.GET.get("address", "")
+
+        initial = {}
+        if name:
+            initial["name"] = name
+        if address:
+            initial["address"] = address
+        kwargs["initial"] = initial
+        return kwargs
+
+
+class CustomerUpdateView(UpdateView):
+    model = db_models.Customer
+    fields = ["name", "address"]
+    template_name = "core/customer_form.html"
+
+    def get_form_kwargs(self) -> dict[str, t.Any]:
+        kwargs = super().get_form_kwargs()
+        name = self.request.GET.get("name", "")
+        address = self.request.GET.get("address", "")
+
+        initial = {}
+        if name:
+            initial["name"] = name
+        if address:
+            initial["address"] = address
+        kwargs["initial"] = initial
+        return kwargs
+
+
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "view_customer",
+            "description": "View a customer",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "customer_id": {
+                        "type": "int",
+                        "description": "The customer ID to view",
+                    },
+                },
+                "required": ["customer_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_customer",
+            "description": "Delete a customer",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "customer_id": {
+                        "type": "int",
+                        "description": "The customer ID to delete",
+                    },
+                },
+                "required": ["customer_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_customer",
+            "description": "Create a customer",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "The name of the customer",
+                    },
+                    "address": {
+                        "type": "string",
+                        "description": "The address of the customer",
+                    },
+                },
+                "required": ["name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_customer",
+            "description": "Update a customer",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "customer_id": {
+                        "type": "int",
+                        "description": "The customer ID to view",
+                        "widget": "hidden",
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "The name of the customer",
+                    },
+                    "address": {
+                        "type": "string",
+                        "description": "The address of the customer",
+                    },
+                },
+                "required": ["customer_id"],
+            },
+        },
+    },
+]
+
+
+class AIStreamView(View):
+    async def stream_events(
+        self,
+        client: ollama.AsyncClient,
+        sub: t.Any,
+    ) -> t.AsyncGenerator:
+        async for message in sub.messages:
+            customers = await asgiref.sync.sync_to_async(self.get_customers)()
+            customer_map = {c.pk: c for c in customers}  # type:ignore
+
+            context = self.get_context(customers=customers)
+            system_prompt = textwrap.dedent(f"""You are an assistant which provides tool calls based on user queries.
+
+            The user queries relate to calling actions which create, update or view a customer.
+            The available customers you can use for the view function are as follows.
+
+            ===Context===
+            {context}
+            ===Context===
+            """)
+
+            question = message.data.decode()
+            stream: t.AsyncIterator[ollama.ChatResponse] = await client.chat(
+                model="qwen3:0.6b",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": system_prompt,
+                    },
+                    {
+                        "role": "user",
+                        "content": f"===Question===\n{question}\n===Question===",
+                    },
+                ],
+                stream=True,
+                tools=tools,
+            )
+
+            tool_calls = []
+            async for resp in stream:
+                token = resp.message.content
+                yield "event: llm\n"
+                yield f"data: {token}\n\n"
+
+                if resp.message.tool_calls:
+                    tool_calls.extend(resp.message.tool_calls)
+
+            if tool_calls:
+                for tc in tool_calls:
+                    function = tc.function
+                    fname = function.name
+                    arguments = function.arguments
+                    anchor = ""
+
+                    if fname == "update_customer":
+                        try:
+                            customer_id = arguments["customer_id"]
+                        except KeyError:
+                            continue
+
+                        name = arguments.get("name", "")
+                        address = arguments.get("address", "")
+                        href = reverse("customer_update", kwargs={"pk": customer_id})
+                        href = f"{href}?name={name}&address={address}"
+                        message = f"Update Customer {customer_id=}"
+
+                        if name:
+                            message += f" {name=}"
+
+                        if address:
+                            message += f" {address=}"
+
+                        anchor = f'<a class="text-underline text-blue-500" href="{href}">{message}</a>'
+                    elif fname == "delete_customer":
+                        try:
+                            customer_id = arguments["customer_id"]
+                        except KeyError:
+                            continue
+                        href = reverse("customer_delete", kwargs={"pk": customer_id})
+
+                        message = "Delete Customer"
+                        customer = customer_map.get(customer_id, None)
+
+                        if not customer:
+                            continue
+
+                        message += f" - {customer.name}"
+                        anchor = f'<a class="text-underline text-blue-500" href="{href}">{message}</a>'
+                    elif fname == "view_customer":
+                        try:
+                            customer_id = arguments["customer_id"]
+                        except KeyError:
+                            continue
+                        href = reverse("customer_detail", kwargs={"pk": customer_id})
+                        message = "View Customer"
+                        customer = customer_map.get(customer_id, None)
+
+                        if not customer:
+                            continue
+
+                        message += f" - {customer.name}"
+
+                        anchor = f'<a class="text-underline text-blue-500" href="{href}">{message}</a>'
+                    elif fname == "create_customer":
+                        name = arguments.get("name", "")
+                        address = arguments.get("address", "")
+                        href = reverse("customer_create")
+                        href = f"{href}?name={name}&address={address}"
+                        message = "Create Customer"
+
+                        if name:
+                            message += f" {name=}"
+
+                        if address:
+                            message += f" {address=}"
+
+                        anchor = f'<a class="hover:underline text-blue-500" href="{href}">{message}</a>'
+
+                    if not anchor:
+                        continue
+
+                    yield "event: anchor\n"
+                    yield f"data: {anchor}\n\n"
+
+            yield "event: end\n"
+            yield "data:\n\n"
+
+    def get_customers(self) -> t.Any:
+        return list(db_models.Customer.objects.all())
+
+    def get_context(self, customers: t.Any) -> str:
+        context = ""
+        for customer in customers:
+            context += textwrap.dedent(f"""<Customer>
+                customer_id {customer.pk}
+                Name to ID Mapping {customer.name} = {customer.pk}
+                ID to Name Mapping {customer.pk} = {customer.name}
+            </Customer>\n
+            """)
+        return context
+
+    async def get(self, request: HttpRequest) -> StreamingHttpResponse:
+        client = ollama.AsyncClient(
+            host=f"http://{settings.OLLAMA_HOST}:{settings.OLLAMA_PORT}",
+        )
+        nc = await nats.connect(servers=["nats://localhost:4222"])
+        sub = await nc.subscribe("customer_ai")
+
+        return StreamingHttpResponse(
+            self.stream_events(client=client, sub=sub),
+            content_type="text/event-stream",
+            headers={"Cache-Control": "no-cache"},
+        )
+
+    async def post(self, request: HttpRequest) -> HttpResponse:
+        nc = await nats.connect(servers=["nats://localhost:4222"])
+        payload_raw = request.body
+        payload = json.loads(payload_raw)
+        q = payload["q"]
+        await nc.publish("customer_ai", f"{q}".encode())
+        return HttpResponse(b"")

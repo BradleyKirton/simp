@@ -1,6 +1,7 @@
-from django.db import models
 from django.contrib.postgres import fields as pgfields
+from django.db import models
 from django.db.models import expressions as db_expressions
+from django.urls import reverse
 
 DEFAULT_VERSION = 1
 
@@ -44,6 +45,9 @@ class Customer(models.Model):
             raise OptimisticUpdateError(f"Failed to update customer {customer_id}")
 
         self.refresh_from_db()
+
+    def get_absolute_url(self) -> str:
+        return reverse("customer_detail", kwargs={"pk": self.pk})
 
 
 class CustomerHistory(models.Model):

@@ -1,0 +1,9 @@
+{% extends 'core/customer_base.html' %}
+
+{% block content %}
+<form method="post">
+	{% csrf_token %}
+	<p>Delete {{ object.name }}?</p>
+	<button class="btn">Delete</button>
+</form>
+{% endblock content %}
